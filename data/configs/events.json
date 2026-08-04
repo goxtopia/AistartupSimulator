@@ -1,0 +1,227 @@
+{
+  "early_events": {
+    "gov_subsidy_offer": {
+      "id": "gov_subsidy_offer",
+      "title": "政府算力补贴",
+      "description": "地方政府抛出算力采购补贴方案，接受可降低芯片成本，但会绑定一定政府关系期望。",
+      "weight": 1.0,
+      "min_day": 5,
+      "max_day": 60,
+      "choices": [
+        {"id": "accept", "label": "接受补贴", "effects": {"capital": 200000, "gov_relation": 10, "compute_cost_mult": -0.1}},
+        {"id": "decline", "label": "婉拒，保持独立", "effects": {"openness": 5, "gov_relation": -2}}
+      ]
+    },
+    "local_talent_boom": {
+      "id": "local_talent_boom",
+      "title": "本地人才潮",
+      "description": "一批应届与归国研究员涌入市场，招聘成本暂时下降。",
+      "weight": 1.0,
+      "min_day": 1,
+      "max_day": 40,
+      "choices": [
+        {"id": "expand_hiring", "label": "扩大招聘", "effects": {"recruit_cost_mult": -0.2, "capital": -50000, "talent_pool_boost": 5}},
+        {"id": "selective", "label": "精挑细选", "effects": {"public_rep": 2}}
+      ]
+    },
+    "data_regulation": {
+      "id": "data_regulation",
+      "title": "数据合规检查",
+      "description": "监管部门要求说明训练数据来源与安全措施。",
+      "weight": 0.8,
+      "min_day": 20,
+      "max_day": 90,
+      "choices": [
+        {"id": "comply", "label": "全面配合", "effects": {"capital": -80000, "gov_relation": 8, "transparency": 5}},
+        {"id": "minimal", "label": "最低限度应对", "effects": {"capital": -20000, "gov_relation": -5, "regulation_risk": 0.1}}
+      ]
+    },
+    "vc_interest": {
+      "id": "vc_interest",
+      "title": "VC 橄榄枝",
+      "description": "一家知名基金希望注资，但要求一定董事会席位与增长承诺。",
+      "weight": 1.0,
+      "min_day": 10,
+      "max_day": 70,
+      "choices": [
+        {"id": "take", "label": "接受 A 轮", "effects": {"capital": 2000000, "public_rep": 8, "openness": -5}},
+        {"id": "pass", "label": "继续 bootstrap", "effects": {"innovation": 3, "public_rep": 2}}
+      ]
+    },
+    "big_tech_poach": {
+      "id": "big_tech_poach",
+      "title": "大厂挖角",
+      "description": "竞争对手对你的核心员工开出天价 offer。",
+      "weight": 0.9,
+      "min_day": 30,
+      "max_day": 120,
+      "requires_employees": 1,
+      "choices": [
+        {"id": "counter", "label": "加薪挽留", "effects": {"capital": -100000, "morale_all": 5}},
+        {"id": "let_go", "label": "随缘", "effects": {"risk_employee_leave": 0.6}}
+      ]
+    },
+    "chip_export_control": {
+      "id": "chip_export_control",
+      "title": "芯片出口管制",
+      "description": "高端 GPU 供应受限，价格上涨、到货变慢。",
+      "weight": 0.7,
+      "min_day": 15,
+      "max_day": 100,
+      "choices": [
+        {"id": "stockpile", "label": "抢购囤货", "effects": {"capital": -300000, "grant_chips": {"nvidia_a100": 4}}},
+        {"id": "diversify", "label": "转向替代方案", "effects": {"research_boost": {"kernel_opt": 1}, "innovation": 2}}
+      ]
+    },
+    "keiretsu_intro": {
+      "id": "keiretsu_intro",
+      "title": "经连会引荐",
+      "description": "大企业集团愿意介绍工业客户，换取优先合作。",
+      "weight": 1.0,
+      "choices": [
+        {"id": "partner", "label": "建立合作", "effects": {"gov_relation": 8, "capital": 150000, "enterprise_demand": 0.15}},
+        {"id": "independent", "label": "保持距离", "effects": {"openness": 3}}
+      ]
+    },
+    "robotics_partnership": {
+      "id": "robotics_partnership",
+      "title": "机器人公司合作",
+      "description": "某机器人厂商希望定制多模态模型。",
+      "weight": 0.8,
+      "choices": [
+        {"id": "accept", "label": "接下订单", "effects": {"capital": 250000, "gov_relation": 5, "research_boost": {"agentic": 1}}},
+        {"id": "decline", "label": "专注通用模型", "effects": {"innovation": 2}}
+      ]
+    },
+    "aging_society_demand": {
+      "id": "aging_society_demand",
+      "title": "老龄化社会需求",
+      "description": "护理与行政自动化需求上升。",
+      "weight": 0.7,
+      "choices": [
+        {"id": "pivot", "label": "加强行政语料", "effects": {"research_boost": {"admin": 1}, "enterprise_demand": 0.1}},
+        {"id": "ignore", "label": "不调整路线", "effects": {}}
+      ]
+    },
+    "chaebol_meeting": {
+      "id": "chaebol_meeting",
+      "title": "财阀会面",
+      "description": "大型财阀邀请闭门演示。",
+      "weight": 1.0,
+      "choices": [
+        {"id": "demo", "label": "高规格演示", "effects": {"capital": -30000, "gov_relation": 12, "public_rep": 5}},
+        {"id": "skip", "label": "推迟", "effects": {"gov_relation": -3}}
+      ]
+    },
+    "gaming_ai_demand": {
+      "id": "gaming_ai_demand",
+      "title": "游戏 AI 需求爆发",
+      "description": "本地游戏厂商急需 NPC 与内容生成模型。",
+      "weight": 0.9,
+      "choices": [
+        {"id": "serve", "label": "推出游戏向 API", "effects": {"capital": 180000, "enthusiast_demand": 0.2, "research_boost": {"creative_writing": 1}}},
+        {"id": "pass", "label": "不做垂直", "effects": {}}
+      ]
+    },
+    "semiconductor_synergy": {
+      "id": "semiconductor_synergy",
+      "title": "半导体协同",
+      "description": "芯片企业愿意提供优先供货与联合优化。",
+      "weight": 0.8,
+      "choices": [
+        {"id": "join", "label": "联合实验室", "effects": {"research_boost": {"asic": 1, "kernel_opt": 1}, "compute_cost_mult": -0.08}},
+        {"id": "no", "label": "不绑定", "effects": {"openness": 2}}
+      ]
+    },
+    "gdpr_audit": {
+      "id": "gdpr_audit",
+      "title": "GDPR / AI Act 审计",
+      "description": "欧盟合规审计临门。",
+      "weight": 1.0,
+      "choices": [
+        {"id": "full", "label": "高标准合规", "effects": {"capital": -120000, "transparency": 12, "public_rep": 8, "gov_relation": 6}},
+        {"id": "bare", "label": "勉强过关", "effects": {"capital": -40000, "public_rep": -5, "regulation_risk": 0.15}}
+      ]
+    },
+    "horizon_grant": {
+      "id": "horizon_grant",
+      "title": "Horizon 科研资助",
+      "description": "可申请一笔可解读性与安全研究方向的资助。",
+      "weight": 0.9,
+      "choices": [
+        {"id": "apply", "label": "申请并投入", "effects": {"capital": 300000, "research_boost": {"interpretability": 1, "harmlessness": 1}, "gov_relation": 5}},
+        {"id": "skip", "label": "不申请", "effects": {}}
+      ]
+    },
+    "ethics_board_request": {
+      "id": "ethics_board_request",
+      "title": "伦理委员会",
+      "description": "外界要求你设立独立伦理审查。",
+      "weight": 0.7,
+      "choices": [
+        {"id": "create", "label": "设立委员会", "effects": {"capital": -50000, "transparency": 8, "public_rep": 6, "innovation": -1}},
+        {"id": "reject", "label": "拒绝", "effects": {"public_rep": -8, "openness": -3}}
+      ]
+    },
+    "sovereign_fund_pitch": {
+      "id": "sovereign_fund_pitch",
+      "title": "主权基金路演",
+      "description": "主权财富基金对 AI 基础设施兴趣浓厚。",
+      "weight": 1.0,
+      "choices": [
+        {"id": "pitch", "label": "全力路演", "effects": {"capital": 5000000, "gov_relation": 15, "public_rep": 5}},
+        {"id": "small", "label": "只要算力额度", "effects": {"grant_chips": {"nvidia_h100": 8}, "gov_relation": 8}}
+      ]
+    },
+    "vision_project": {
+      "id": "vision_project",
+      "title": "国家愿景项目",
+      "description": "被邀请参与国家级智慧城市/愿景工程。",
+      "weight": 0.8,
+      "choices": [
+        {"id": "join", "label": "参与", "effects": {"capital": 800000, "gov_relation": 20, "openness": -8}},
+        {"id": "no", "label": "专注产品", "effects": {"innovation": 3}}
+      ]
+    },
+    "expat_talent_wave": {
+      "id": "expat_talent_wave",
+      "title": "外籍人才浪潮",
+      "description": "高薪可吸引一批国际研究员。",
+      "weight": 0.9,
+      "choices": [
+        {"id": "hire", "label": "国际招聘专项", "effects": {"capital": -200000, "talent_pool_boost": 8, "recruit_cost_mult": 0.1}},
+        {"id": "local", "label": "培养本地团队", "effects": {"capital": -50000, "morale_all": 5}}
+      ]
+    },
+    "it_services_deal": {
+      "id": "it_services_deal",
+      "title": "IT 服务商大单",
+      "description": "大型外包公司希望转售你的 API。",
+      "weight": 1.0,
+      "choices": [
+        {"id": "reseller", "label": "签约转售", "effects": {"capital": 200000, "code_demand": 0.15, "consumer_demand": 0.1}},
+        {"id": "direct", "label": "只做直销", "effects": {"public_rep": 3}}
+      ]
+    },
+    "jugaad_innovation": {
+      "id": "jugaad_innovation",
+      "title": "Jugaad 创新",
+      "description": "团队用极低成本做出了有效的训练技巧。",
+      "weight": 0.8,
+      "choices": [
+        {"id": "adopt", "label": "推广到全公司", "effects": {"compute_efficiency": 0.08, "innovation": 4, "public_rep": 3}},
+        {"id": "patent", "label": "申请专利闭源", "effects": {"capital": -20000, "innovation": 2, "openness": -5}}
+      ]
+    },
+    "english_market_bridge": {
+      "id": "english_market_bridge",
+      "title": "英语市场桥梁",
+      "description": "凭借英语优势可更易进入全球代码用户市场。",
+      "weight": 0.9,
+      "choices": [
+        {"id": "global", "label": "全球化 API", "effects": {"code_demand": 0.2, "consumer_demand": 0.1, "public_rep": 5}},
+        {"id": "domestic", "label": "深耕本地", "effects": {"capital": 50000, "gov_relation": 5}}
+      ]
+    }
+  }
+}

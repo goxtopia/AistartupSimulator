@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Startup Simulator</title>
+  <link rel="stylesheet" href="/static/css/main.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div id="app">
+    <!-- HOME -->
+    <section id="view-home" class="view active">
+      <div class="home-bg" aria-hidden="true"></div>
+      <div class="home-panel">
+        <div class="home-brand">
+          <div id="home-logo" class="logo-preview lg"></div>
+          <h1>AI Startup Simulator</h1>
+          <p class="tagline">从车库到 frontier lab —— 经营你的 AI 研究公司</p>
+        </div>
+        <div class="home-actions">
+          <button class="btn primary xl" id="btn-new-game">新的征程</button>
+          <button class="btn ghost xl" id="btn-load-game">读取存档</button>
+        </div>
+        <div class="home-meta">
+          <span>配置驱动 · 接口化引擎 · SVG 美术</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETUP WIZARD -->
+    <section id="view-setup" class="view">
+      <div class="setup-shell">
+        <header class="setup-header">
+          <button class="btn text" id="setup-back">← 返回</button>
+          <h2>创立公司</h2>
+          <div class="setup-steps">
+            <span data-step="0" class="on">创始人</span>
+            <span data-step="1">国家</span>
+            <span data-step="2">品牌</span>
+            <span data-step="3">确认</span>
+          </div>
+        </header>
+        <div class="setup-body">
+          <!-- step 0 founder -->
+          <div class="setup-step" data-step="0">
+            <div class="grid-2">
+              <div class="card">
+                <h3>创始人</h3>
+                <label>姓名<input id="founder-name" type="text" maxlength="40" placeholder="例如：林启明" /></label>
+                <label>性别
+                  <div class="seg" id="founder-gender">
+                    <button type="button" data-v="male" class="on">男</button>
+                    <button type="button" data-v="female">女</button>
+                    <button type="button" data-v="other">其他</button>
+                  </div>
+                </label>
+                <div class="founder-avatar" id="founder-avatar">
+                  <!-- SVG placeholder -->
+                </div>
+              </div>
+              <div class="card">
+                <h3>背景</h3>
+                <div id="bg-list" class="choice-list"></div>
+              </div>
+            </div>
+          </div>
+          <!-- step 1 country -->
+          <div class="setup-step hidden" data-step="1">
+            <div id="country-list" class="country-grid"></div>
+          </div>
+          <!-- step 2 brand -->
+          <div class="setup-step hidden" data-step="2">
+            <div class="grid-2">
+              <div class="card">
+                <h3>公司名称</h3>
+                <label><input id="company-name" type="text" maxlength="48" placeholder="例如：星火智能" /></label>
+                <h3 class="mt">Logo 设计器</h3>
+                <div class="logo-controls">
+                  <label>形状<select id="logo-shape"></select></label>
+                  <label>图标<select id="logo-icon"></select></label>
+                  <label>布局<select id="logo-layout"></select></label>
+                  <label>配色<select id="logo-palette"></select></label>
+                  <label>字母<input id="logo-mono" type="text" maxlength="3" placeholder="AI" /></label>
+                </div>
+              </div>
+              <div class="card center">
+                <div id="logo-preview" class="logo-preview xl"></div>
+                <p class="muted">实时预览 · SVG 叠加</p>
+              </div>
+            </div>
+          </div>
+          <!-- step 3 confirm -->
+          <div class="setup-step hidden" data-step="3">
+            <div class="card confirm-card">
+              <div id="confirm-logo" class="logo-preview lg"></div>
+              <h3 id="confirm-company">—</h3>
+              <ul id="confirm-summary" class="summary-list"></ul>
+            </div>
+          </div>
+        </div>
+        <footer class="setup-footer">
+          <button class="btn ghost" id="setup-prev" disabled>上一步</button>
+          <button class="btn primary" id="setup-next">下一步</button>
+        </footer>
+      </div>
+    </section>
+
+    <!-- LOAD -->
+    <section id="view-load" class="view">
+      <div class="setup-shell narrow">
+        <header class="setup-header">
+          <button class="btn text" id="load-back">← 返回</button>
+          <h2>读取存档</h2>
+        </header>
+        <div id="save-list" class="save-list"></div>
+      </div>
+    </section>
+
+    <!-- GAME -->
+    <section id="view-game" class="view">
+      <header class="topbar">
+        <div class="brand-mini">
+          <div id="game-logo" class="logo-preview sm"></div>
+          <div>
+            <div id="game-company" class="name">—</div>
+            <div id="game-country" class="sub">—</div>
+          </div>
+        </div>
+        <div class="stats-bar">
+          <div class="stat"><span class="k">Day</span><span id="stat-day" class="v">0</span></div>
+          <div class="stat money"><span class="k">资金</span><span id="stat-capital" class="v">$0</span></div>
+          <div class="stat"><span class="k">日收入</span><span id="stat-revenue" class="v">$0</span></div>
+          <div class="stat"><span class="k">员工</span><span id="stat-emps" class="v">0</span></div>
+          <div class="stat"><span class="k">算力</span><span id="stat-flops" class="v">0 TF</span></div>
+        </div>
+        <div class="top-actions">
+          <button class="btn sm" id="btn-adv-1" title="推进 1 天">+1 天</button>
+          <button class="btn sm" id="btn-adv-7">+7 天</button>
+          <button class="btn sm" id="btn-adv-30">+30 天</button>
+          <button class="btn sm ghost" id="btn-save">存档</button>
+          <button class="btn sm ghost" id="btn-menu">菜单</button>
+        </div>
+      </header>
+
+      <div class="game-body">
+        <nav class="sidebar" id="sidebar">
+          <button data-tab="dashboard" class="on">总览</button>
+          <button data-tab="hr">人才</button>
+          <button data-tab="research">研究</button>
+          <button data-tab="compute">算力</button>
+          <button data-tab="training">训练</button>
+          <button data-tab="models">模型</button>
+          <button data-tab="market">市场</button>
+          <button data-tab="events">事件</button>
+          <button data-tab="log">日志</button>
+        </nav>
+
+        <main class="content">
+          <!-- DASHBOARD -->
+          <div class="tab on" id="tab-dashboard">
+            <div class="grid-3">
+              <div class="card">
+                <h3>公司倾向</h3>
+                <div id="tend-bars" class="bars"></div>
+              </div>
+              <div class="card">
+                <h3>进行中</h3>
+                <div id="dash-active" class="stack"></div>
+              </div>
+              <div class="card">
+                <h3>创始人</h3>
+                <div id="dash-founder"></div>
+              </div>
+            </div>
+            <div class="grid-2 mt">
+              <div class="card">
+                <h3>API 用户分布</h3>
+                <div id="dash-segments"></div>
+              </div>
+              <div class="card">
+                <h3>最近动态</h3>
+                <div id="dash-log" class="log-mini"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- HR -->
+          <div class="tab" id="tab-hr">
+            <div class="toolbar">
+              <h3>员工与招聘</h3>
+              <div class="spacer"></div>
+              <button class="btn sm" id="btn-refresh-hr">刷新人才市场 ($5k)</button>
+            </div>
+            <div class="grid-2">
+              <div class="card">
+                <h4>在职员工 <span id="emp-count" class="badge">0</span></h4>
+                <div id="emp-list" class="person-list"></div>
+              </div>
+              <div class="card">
+                <h4>候选人</h4>
+                <div id="cand-list" class="person-list"></div>
+              </div>
+            </div>
+            <div class="card mt">
+              <h4>挖角竞争对手</h4>
+              <div id="poach-list" class="row-wrap"></div>
+            </div>
+          </div>
+
+          <!-- RESEARCH -->
+          <div class="tab" id="tab-research">
+            <div class="toolbar">
+              <h3>研究树</h3>
+              <div class="seg" id="research-cat">
+                <button type="button" data-v="model" class="on">模型</button>
+                <button type="button" data-v="data">素材</button>
+                <button type="button" data-v="compute">算力</button>
+              </div>
+            </div>
+            <div id="research-list" class="research-grid"></div>
+          </div>
+
+          <!-- COMPUTE -->
+          <div class="tab" id="tab-compute">
+            <div class="toolbar">
+              <h3>计算池</h3>
+              <div id="pool-summary" class="pill-row"></div>
+            </div>
+            <div id="chip-list" class="chip-grid"></div>
+          </div>
+
+          <!-- TRAINING -->
+          <div class="tab" id="tab-training">
+            <div class="grid-2">
+              <div class="card">
+                <h3>创建数据集</h3>
+                <label>名称<input id="ds-name" type="text" placeholder="自研混合语料 v1" /></label>
+                <label class="check"><input id="ds-open" type="checkbox" checked /> 使用开源素材作为 base</label>
+                <div id="ds-weights" class="weight-grid"></div>
+                <button class="btn primary sm" id="btn-create-ds">创建数据集</button>
+                <h4 class="mt">已有数据集</h4>
+                <div id="ds-list" class="stack"></div>
+              </div>
+              <div class="card">
+                <h3>启动训练</h3>
+                <label>模型名<input id="tr-name" type="text" placeholder="Spark-7B" /></label>
+                <label>类型<select id="tr-type"></select></label>
+                <label>参数量<select id="tr-params"></select></label>
+                <label>数据集<select id="tr-ds"></select></label>
+                <label>预期天数<input id="tr-days" type="number" min="3" max="365" value="30" /></label>
+                <label class="check"><input id="tr-scratch" type="checkbox" checked /> 从零 Pretrain</label>
+                <label id="tr-base-wrap" class="hidden">基座模型
+                  <select id="tr-base"></select>
+                </label>
+                <label>分配员工（可多选）
+                  <select id="tr-emps" multiple size="5"></select>
+                </label>
+                <button class="btn primary" id="btn-start-train">开始训练</button>
+                <h4 class="mt">进行中的训练</h4>
+                <div id="tr-active" class="stack"></div>
+              </div>
+            </div>
+            <div class="card mt">
+              <h3>蒸馏微调</h3>
+              <div class="row-form">
+                <label>名称<input id="di-name" type="text" placeholder="Spark-Distill-7B" /></label>
+                <label>教师来源
+                  <select id="di-source">
+                    <option value="own">自有模型</option>
+                    <option value="open">开源模型</option>
+                    <option value="closed_competitor">竞品闭源</option>
+                  </select>
+                </label>
+                <label>教师模型<select id="di-teacher"></select></label>
+                <label>参数量<select id="di-params"></select></label>
+                <label>数据集<select id="di-ds"></select></label>
+                <button class="btn" id="btn-distill">开始蒸馏</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODELS -->
+          <div class="tab" id="tab-models">
+            <div id="model-list" class="model-grid"></div>
+          </div>
+
+          <!-- MARKET -->
+          <div class="tab" id="tab-market">
+            <div class="grid-2">
+              <div class="card">
+                <h3>细分市场</h3>
+                <div id="market-segments"></div>
+              </div>
+              <div class="card">
+                <h3>竞争对手</h3>
+                <div id="market-comps" class="stack"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- EVENTS -->
+          <div class="tab" id="tab-events">
+            <div id="event-queue" class="stack"></div>
+            <h4 class="mt">历史事件</h4>
+            <div id="event-history" class="stack muted-list"></div>
+          </div>
+
+          <!-- LOG -->
+          <div class="tab" id="tab-log">
+            <div id="full-log" class="log-full"></div>
+          </div>
+        </main>
+      </div>
+    </section>
+  </div>
+
+  <!-- MODALS -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-card">
+      <header>
+        <h3 id="modal-title">—</h3>
+        <button class="btn icon" id="modal-close">×</button>
+      </header>
+      <div id="modal-body"></div>
+      <footer id="modal-footer"></footer>
+    </div>
+  </div>
+
+  <div id="toast-root" class="toasts"></div>
+
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>
