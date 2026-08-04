@@ -357,6 +357,12 @@ class HRSystem:
         for emp in state.get("employees", []):
             if emp["id"] == employee_id:
                 emp["assigned_to"] = None
+        # Continuous research stores staff on level entries
+        for rid, cur in (state.get("research", {}).get("levels") or {}).items():
+            if isinstance(cur, dict):
+                ids = cur.get("employee_ids") or []
+                if employee_id in ids:
+                    cur["employee_ids"] = [i for i in ids if i != employee_id]
         for job in state.get("research", {}).get("active", []):
             ids = job.get("employee_ids", [])
             if employee_id in ids:

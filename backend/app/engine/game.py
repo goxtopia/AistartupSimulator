@@ -224,11 +224,24 @@ class GameEngine:
                 data = {"employee": emp}
             elif action == "start_research":
                 ok, msg, job = research.start(
-                    state, ctx, payload["research_id"], payload["category"], payload.get("employee_ids") or []
+                    state,
+                    ctx,
+                    payload["research_id"],
+                    payload.get("category") or "model",
+                    payload.get("employee_ids") or [],
                 )
                 data = {"job": job}
             elif action == "assign_research":
-                ok, msg = research.assign(state, payload["research_id"], payload.get("employee_ids") or [])
+                ok, msg, job = research.assign(
+                    state,
+                    ctx,
+                    payload["research_id"],
+                    payload.get("category"),
+                    payload.get("employee_ids") or [],
+                )
+                data = {"job": job}
+            elif action == "pause_research":
+                ok, msg = research.pause(state, payload["research_id"])
             elif action == "purchase_compute":
                 ok, msg = compute.purchase(
                     state, ctx, payload["chip_id"], int(payload.get("quantity", 1)), payload.get("mode", "buy")
@@ -254,6 +267,11 @@ class GameEngine:
                     base_model_id=payload.get("base_model_id"),
                     expected_days=int(payload.get("expected_days", 30)),
                     employee_ids=payload.get("employee_ids") or [],
+                )
+                data = {"job": job}
+            elif action == "assign_training":
+                ok, msg, job = training.assign(
+                    state, payload["job_id"], payload.get("employee_ids") or []
                 )
                 data = {"job": job}
             elif action == "distill":

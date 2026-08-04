@@ -38,30 +38,56 @@ class TrainingSystem:
         events: list[dict] = []
         active = state.get("training", {}).get("active", [])
         done = []
-        pool = ctx.get_system("compute")
         for job in active:
-            # consume compute reservation
+            if job.get("paused"):
+                continue
             speed = self._train_speed(state, job, ctx)
-            job["progress"] = float(job.get("progress", 0)) + speed * days
-            daily = float(job.get("daily_cost", 0))
-            state["company"]["capital"] -= daily * days
-            if job["progress"] >= float(job.get("needed", 100)):
-                done.append(job)
+            # Staff-dependent daily burn
+            n = max(1, len(job.get("employee_ids") or []))
+            daily = float(job.get("daily_cost_base", job.get("daily_cost", 0))) * (0.7 + 0.08 * n)
+            job["daily_cost"] = daily
+            job["speed_per_day"] = round(speed, 2)
+
+            for _ in range(days):
+                state["company"]["capital"] = float(state["company"].get("capital", 0)) - daily
+                job["progress"] = float(job.get("progress", 0)) + speed
+                job["person_days"] = float(job.get("person_days", 0)) + n
+                # phase milestones
+                pct = job["progress"] / max(float(job.get("needed", 100)), 1)
+                phase = self._phase_for_pct(pct)
+                if phase != job.get("phase"):
+                    prev = job.get("phase")
+                    job["phase"] = phase
+                    if prev:
+                        events.append(
+                            {
+                                "type": "train_phase",
+                                "msg": f"训练「{job['name']}」进入阶段：{phase}",
+                                "job_id": job["id"],
+                            }
+                        )
+                if job["progress"] >= float(job.get("needed", 100)):
+                    done.append(job)
+                    break
 
         for job in done:
-            active.remove(job)
+            if job in active:
+                active.remove(job)
             model = self._finalize_model(state, job, ctx)
             state.setdefault("models", []).append(model)
             for eid in job.get("employee_ids", []):
                 emp = next((e for e in state.get("employees", []) if e["id"] == eid), None)
                 if emp:
                     emp["assigned_to"] = None
-            state["compute"]["busy"] = max(0.0, float(state["compute"].get("busy", 0)) - float(job.get("compute_share", 0.3)))
+                    for sk in (emp.get("skill_focus") or [])[:2]:
+                        emp["skills"][sk] = round(min(100, float(emp["skills"].get(sk, 0)) + 2.0), 1)
+            state["compute"]["busy"] = max(
+                0.0, float(state["compute"].get("busy", 0)) - float(job.get("compute_share", 0.3))
+            )
             msg = f"训练完成：{model['name']}（隐藏分 {model['hidden_score']}）"
             events.append({"type": "train_done", "msg": msg, "model_id": model["id"]})
             state.setdefault("log", []).append({"day": state.get("day", 0), "msg": msg, "cat": "training"})
 
-        # decay is_new flag
         for m in state.get("models", []):
             if m.get("is_new") and state.get("day", 0) - int(m.get("released_day") or m.get("created_day", 0)) > 21:
                 m["is_new"] = False
@@ -70,10 +96,34 @@ class TrainingSystem:
 
     def serialize_public(self, state: dict[str, Any], ctx) -> dict[str, Any]:
         types = ctx.configs().load("model_types")
+        active_out = []
+        for job in state.get("training", {}).get("active", []):
+            speed = self._train_speed(state, job, ctx)
+            needed = float(job.get("needed", 100))
+            progress = float(job.get("progress", 0))
+            pct = min(100.0, (progress / needed) * 100.0) if needed else 0.0
+            eta = round((needed - progress) / speed, 1) if speed > 0.01 and progress < needed else None
+            staff = []
+            for eid in job.get("employee_ids") or []:
+                emp = next((e for e in state.get("employees", []) if e["id"] == eid), None)
+                if emp:
+                    staff.append({"id": emp["id"], "name": emp["name"], "role_name": emp.get("role_name")})
+            active_out.append(
+                {
+                    **job,
+                    "progress_pct": round(pct, 1),
+                    "speed_per_day": round(speed, 2),
+                    "eta_days": eta,
+                    "phase": job.get("phase") or self._phase_for_pct(pct / 100.0),
+                    "phases": self._phase_list(),
+                    "staff": staff,
+                    "paused": bool(job.get("paused")),
+                }
+            )
         return {
             "datasets": state.get("datasets", []),
             "models": [self._public_model(m) for m in state.get("models", [])],
-            "active": state.get("training", {}).get("active", []),
+            "active": active_out,
             "model_types": types.get("model_types", {}),
             "param_presets": types.get("param_presets", []),
             "open_models": state.get("open_models", []),
@@ -207,7 +257,8 @@ class TrainingSystem:
             base_label = teacher.get("name")
 
         days = max(3, int(expected_days * float(tcfg.get("time_multiplier", 1.0))))
-        upfront = 20000 + params_b * 800 * float(tcfg.get("difficulty", 1.0))
+        # Smaller upfront; bulk cost is continuous daily burn (GDT-style)
+        upfront = 8000 + params_b * 250 * float(tcfg.get("difficulty", 1.0))
         if state["company"]["capital"] < upfront:
             return False, f"启动资金不足（需要 ${upfront:,.0f}）", None
         state["company"]["capital"] -= upfront
@@ -215,6 +266,7 @@ class TrainingSystem:
         share = min(0.85, need_flops / max(pool["flops_tf"], 1))
         state["compute"]["busy"] = min(1.0, float(state["compute"].get("busy", 0)) + share)
 
+        daily_base = upfront * 0.04 + pool["flops_tf"] * 0.35 + params_b * 15
         job = {
             "id": str(uuid.uuid4())[:8],
             "name": name,
@@ -230,14 +282,50 @@ class TrainingSystem:
             "progress": 0.0,
             "needed": float(days) * 10,
             "employee_ids": [e["id"] for e in emps],
-            "daily_cost": upfront * 0.03 + pool["flops_tf"] * 0.5,
+            "daily_cost_base": daily_base,
+            "daily_cost": daily_base * (0.7 + 0.08 * max(1, len(emps))),
             "compute_share": share,
             "started_day": state.get("day", 0),
+            "phase": "数据准备",
+            "person_days": 0.0,
+            "paused": False,
+            "team_cap": 20,
         }
         for e in emps:
             e["assigned_to"] = f"train:{job['id']}"
         state.setdefault("training", {}).setdefault("active", []).append(job)
-        return True, f"开始训练 {name}", job
+        eta_hint = f"，目标约 {days} 天" if emps else "（无人值守会很慢）"
+        return True, f"立项训练 {name}{eta_hint} · 启动 ${upfront:,.0f}", job
+
+    def assign(self, state: dict[str, Any], job_id: str, employee_ids: list[str]) -> tuple[bool, str, dict | None]:
+        """Reassign staff on a running training job. Progress is kept."""
+        job = next((j for j in state.get("training", {}).get("active", []) if j["id"] == job_id), None)
+        if not job:
+            return False, "训练任务不存在", None
+        cap = int(job.get("team_cap", 20))
+        employee_ids = list(employee_ids or [])[:cap]
+
+        # free old
+        for eid in job.get("employee_ids") or []:
+            emp = next((e for e in state.get("employees", []) if e["id"] == eid), None)
+            if emp and emp.get("assigned_to") == f"train:{job_id}":
+                emp["assigned_to"] = None
+
+        valid = []
+        for eid in employee_ids:
+            emp = next((e for e in state.get("employees", []) if e["id"] == eid), None)
+            if not emp:
+                return False, f"员工 {eid} 不存在", None
+            if emp.get("assigned_to") and emp.get("assigned_to") != f"train:{job_id}":
+                return False, f"{emp['name']} 已有任务", None
+            valid.append(eid)
+            emp["assigned_to"] = f"train:{job_id}"
+
+        job["employee_ids"] = valid
+        job["paused"] = len(valid) == 0
+        if job["paused"]:
+            return True, f"已暂停训练「{job['name']}」（进度保留）", job
+        return True, f"训练「{job['name']}」现有 {len(valid)} 人", job
 
     def release(
         self,
@@ -446,15 +534,13 @@ class TrainingSystem:
         return None
 
     def _train_speed(self, state: dict, job: dict, ctx) -> float:
-        """Progress units/day. Target: finish near expected_days with adequate compute."""
+        """Progress units/day. Staff + compute drive the bar; empty team crawls."""
         compute_sys = ctx.get_system("compute")
         pool = compute_sys.pool_stats(state, ctx) if compute_sys else {"flops_tf": 100, "efficiency": 1}
         needed = float(job.get("needed", 100))
         expected = max(1.0, float(job.get("expected_days", 30)))
-        # Baseline pace hits `needed` in `expected` days at mult=1.0
         base = needed / expected
 
-        # Compute adequacy vs param demand
         params_b = float(job.get("params_b", 7))
         tcfg = ctx.configs().load("model_types").get("model_types", {}).get(job.get("model_type", "text"), {})
         need_flops = params_b * 8 * float(tcfg.get("compute_multiplier", 1.0))
@@ -465,20 +551,43 @@ class TrainingSystem:
         ratio = float(pool.get("flops_tf", 100)) / max(need_flops, 1.0)
         compute_mult = min(1.8, 0.45 + 0.55 * min(ratio, 2.0))
 
-        emps = [e for e in state.get("employees", []) if e["id"] in job.get("employee_ids", [])]
+        emps = [e for e in state.get("employees", []) if e["id"] in (job.get("employee_ids") or [])]
         if emps:
             skill = sum(
                 float(e.get("skills", {}).get("ml_theory", 20))
                 + float(e.get("skills", {}).get("systems", 20))
                 for e in emps
             ) / len(emps)
-            team_mult = 0.75 + skill / 120.0 + min(0.35, len(emps) * 0.04)
+            n = len(emps)
+            # diminishing returns on headcount
+            head = n / (1.0 + 0.1 * max(0, n - 3))
+            team_mult = (0.55 + skill / 130.0) * (0.55 + 0.12 * head)
         else:
-            team_mult = 0.55
+            # Unstaffed training: compute-only trickle (very slow)
+            team_mult = 0.18
 
         busy = float(state.get("compute", {}).get("busy", 0))
         busy_mult = max(0.4, 1.0 - busy * 0.25)
-        return max(0.5, base * compute_mult * team_mult * busy_mult)
+        if job.get("paused"):
+            return 0.0
+        return max(0.15, base * compute_mult * team_mult * busy_mult)
+
+    def _phase_list(self) -> list[dict]:
+        return [
+            {"id": "data", "name": "数据准备", "at": 0.0},
+            {"id": "pretrain", "name": "预训练", "at": 0.15},
+            {"id": "mid", "name": "中期对齐", "at": 0.55},
+            {"id": "sft", "name": "SFT / 精调", "at": 0.75},
+            {"id": "eval", "name": "评测打包", "at": 0.92},
+        ]
+
+    def _phase_for_pct(self, pct: float) -> str:
+        phases = self._phase_list()
+        name = phases[0]["name"]
+        for p in phases:
+            if pct >= float(p["at"]):
+                name = p["name"]
+        return name
 
     def _seed_open_models(self, state: dict, ctx) -> None:
         """Seed baseline open-weight models. Rival models come from CompetitorsSystem."""

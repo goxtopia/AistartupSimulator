@@ -469,18 +469,20 @@ function renderDashboard() {
 
   const active = [];
   (g.systems?.research?.active || []).forEach((j) => {
-    const pct = Math.min(100, (j.progress / j.needed) * 100);
-    active.push(`<div class="stack-item"><div class="t">研究 · ${j.name}</div>
-      <div class="s">团队 ${j.employee_ids?.length || 0} 人</div>
+    const pct = Number(j.progress_pct != null ? j.progress_pct : Math.min(100, (j.progress / (j.needed || 1)) * 100));
+    const eta = j.eta_days != null ? ` · ~${j.eta_days}d` : "";
+    active.push(`<div class="stack-item"><div class="t">研究 · ${j.name || j.research_id}</div>
+      <div class="s">Lv.${j.level ?? "?"} · ${j.employee_ids?.length || 0} 人${eta}</div>
       <div class="progress"><i style="width:${pct}%"></i></div></div>`);
   });
   (g.systems?.training?.active || []).forEach((j) => {
-    const pct = Math.min(100, (j.progress / j.needed) * 100);
+    const pct = Number(j.progress_pct != null ? j.progress_pct : Math.min(100, (j.progress / (j.needed || 1)) * 100));
+    const eta = j.eta_days != null ? ` · ~${j.eta_days}d` : "";
     active.push(`<div class="stack-item"><div class="t">训练 · ${j.name}</div>
-      <div class="s">${j.params_b}B · ${j.model_type}</div>
+      <div class="s">${j.phase || ""} · ${j.params_b}B · ${(j.employee_ids||[]).length}人${eta}</div>
       <div class="progress"><i style="width:${pct}%"></i></div></div>`);
   });
-  $("#dash-active").innerHTML = active.length ? active.join("") : `<div class="muted">暂无进行中的项目</div>`;
+  $("#dash-active").innerHTML = active.length ? active.join("") : `<div class="muted">暂无进行中的项目 — 去研究/训练页投入人手</div>`;
 
   const f = g.company.founder || {};
   $("#dash-founder").innerHTML = `
@@ -659,91 +661,168 @@ function renderResearch() {
   const g = state.game;
   const cat = state.researchCat;
   const items = g.systems?.research?.catalog?.[cat] || [];
-  const freeEmps = (g.systems?.hr?.employees || []).filter((e) => !e.assigned_to);
+  const activeAll = g.systems?.research?.active || [];
+  const maxC = g.systems?.research?.max_concurrent || 8;
+
+  if ($("#research-focus-bar")) {
+    $("#research-focus-bar").innerHTML = `
+      <span class="pill">专注中 ${activeAll.length}/${maxC}</span>
+      <span class="pill">空闲人手 ${(g.systems?.hr?.employees || []).filter((e) => !e.assigned_to).length}</span>
+      ${activeAll
+        .map(
+          (a) =>
+            `<span class="pill" title="${esc(a.name)}">${esc(a.name || a.research_id)} ${Number(a.progress_pct || 0).toFixed(0)}%${
+              a.eta_days != null ? " · ~" + a.eta_days + "d" : ""
+            }</span>`
+        )
+        .join("")}`;
+  }
 
   $("#research-list").innerHTML = items
     .map((r) => {
-      const active = r.active;
-      let pct = 0;
-      if (active) pct = Math.min(100, (active.progress / active.needed) * 100);
+      const pct = Number(r.progress_pct || 0);
       const maxed = r.level >= r.max_level;
-      return `<div class="r-card">
-        <header><span class="nm">${esc(r.name)}</span><span class="lv">Lv.${r.level}/${r.max_level}</span></header>
+      const focused = !!r.focused;
+      const nStaff = (r.employee_ids || r.staff || []).length;
+      const staffNames = (r.staff || []).map((s) => s.name).join("、") || "未分配";
+      const eta =
+        r.eta_days != null ? `ETA ${r.eta_days}d` : focused ? "计算中" : "投入人手后开始累积";
+      const speed = focused ? `${Number(r.speed_per_day || 0).toFixed(1)}/天` : "—";
+      return `<div class="r-card ${focused ? "focused" : ""}">
+        <header>
+          <span class="nm">${esc(r.name)}</span>
+          <span class="lv">Lv.${r.level}/${r.max_level}</span>
+        </header>
         <div class="desc">${esc(r.description || "")}</div>
-        ${active ? `<div class="progress"><i style="width:${pct}%"></i></div>
-          <div class="s muted">进行中 · 团队 ${active.employee_ids?.length || 0}/${r.team_cap}</div>` : ""}
+        <div class="progress"><i style="width:${maxed ? 100 : pct}%"></i></div>
+        <div class="progress-meta">
+          <span>${maxed ? "MAX" : pct.toFixed(0) + "% → Lv." + (r.level + 1)}</span>
+          <span>${speed} · ${eta}</span>
+        </div>
+        <div class="staff-line">${focused ? "🔬 " : "👤 "}${esc(staffNames)}${nStaff ? `（${nStaff}/${r.team_cap}）` : ""}</div>
         <footer>
-          <span class="cost">${maxed ? "MAX" : money(r.next_cost) + " · ~" + Math.round(r.next_days_base) + "天"}</span>
-          ${
-            maxed
-              ? ""
-              : active
-              ? `<button class="btn sm" data-assign="${r.id}">调整团队</button>`
-              : `<button class="btn sm primary" data-start="${r.id}" ${freeEmps.length ? "" : ""}>开始</button>`
-          }
+          <span class="cost">${maxed ? "已满级" : `日耗 ~${money(r.daily_cost || 0)} · 累计 ${money(r.total_invested || 0)}`}</span>
+          <div style="display:flex;gap:0.3rem;flex-wrap:wrap">
+            ${
+              maxed
+                ? ""
+                : focused
+                ? `<button class="btn sm" data-assign="${r.id}">调整人手</button>
+                   <button class="btn sm ghost" data-pause="${r.id}">撤回</button>`
+                : `<button class="btn sm primary" data-start="${r.id}">投入人手</button>`
+            }
+          </div>
         </footer>
       </div>`;
     })
     .join("");
 
-  $all("[data-start]").forEach((b) => {
-    b.onclick = () => startResearch(b.dataset.start, cat);
+  $all("#research-list [data-start]").forEach((b) => {
+    b.onclick = () => focusResearch(b.dataset.start, cat, []);
   });
-  $all("[data-assign]").forEach((b) => {
-    b.onclick = () => assignResearch(b.dataset.assign, cat);
+  $all("#research-list [data-assign]").forEach((b) => {
+    const item = items.find((x) => x.id === b.dataset.assign);
+    b.onclick = () => focusResearch(b.dataset.assign, cat, item?.employee_ids || []);
+  });
+  $all("#research-list [data-pause]").forEach((b) => {
+    b.onclick = async () => {
+      try {
+        applyAction(await api.pauseResearch(b.dataset.pause));
+      } catch (e) {
+        toast(e.message, "err");
+      }
+    };
   });
 }
 
-async function startResearch(id, cat) {
-  const emps = pickEmployeesModal("分配研究团队（最多20人）");
-  const ids = await emps;
+async function focusResearch(id, cat, preselected = []) {
+  const item = (state.game.systems?.research?.catalog?.[cat] || []).find((x) => x.id === id);
+  const ids = await pickEmployeesModal(
+    `投入人手 · ${item?.name || id}`,
+    {
+      preselected,
+      allowBusyOn: `research:${id}`,
+      hint: "进度会随推进天数累积；撤下人手后进度保留。升级后自动冲下一级。",
+      max: item?.team_cap || 20,
+    }
+  );
   if (ids === null) return;
   try {
+    // start_research == assign focus in new model
     applyAction(await api.startResearch(id, cat, ids));
   } catch (e) {
     toast(e.message, "err");
   }
 }
 
-async function assignResearch(id, cat) {
-  const ids = await pickEmployeesModal("调整团队");
-  if (ids === null) return;
-  try {
-    applyAction(await api.assignResearch(id, cat, ids));
-  } catch (e) {
-    toast(e.message, "err");
-  }
-}
-
-function pickEmployeesModal(title) {
+function pickEmployeesModal(title, opts = {}) {
+  const {
+    preselected = [],
+    allowBusyOn = null,
+    hint = "",
+    max = 20,
+  } = opts;
   const emps = state.game.systems?.hr?.employees || [];
+  const pre = new Set(preselected);
   const body = document.createElement("div");
   if (!emps.length) {
-    body.innerHTML = `<p class="muted">暂无员工。可以空队启动（极慢）或先去招聘。</p>`;
+    body.innerHTML = `<p class="muted">暂无员工，请先去人才市场招聘。</p>`;
   } else {
-    body.innerHTML = `<div class="stack" style="max-height:50vh;overflow:auto">
+    body.innerHTML = `
+      ${hint ? `<p class="muted" style="margin-top:0">${esc(hint)}</p>` : ""}
+      <p class="muted" style="font-size:0.8rem">最多 ${max} 人 · 已选 <span id="pick-count">0</span></p>
+      <div class="stack" style="max-height:50vh;overflow:auto">
       ${emps
-        .map(
-          (e) => `<label class="check" style="margin:0">
-          <input type="checkbox" value="${e.id}" ${e.assigned_to ? "disabled" : ""} />
-          ${esc(e.name)} · ${esc(e.role_name || "")} ${e.assigned_to ? "（忙碌）" : ""}
-        </label>`
-        )
+        .map((e) => {
+          const onThis =
+            allowBusyOn && e.assigned_to === allowBusyOn;
+          const busy = e.assigned_to && !onThis;
+          const checked = pre.has(e.id) || onThis;
+          return `<label class="check" style="margin:0;opacity:${busy ? 0.45 : 1}">
+          <input type="checkbox" value="${e.id}" ${checked ? "checked" : ""} ${busy ? "disabled" : ""} />
+          <span><b>${esc(e.name)}</b> · ${esc(e.role_name || "")} · ${esc(e.seniority_name || "")}
+          ${busy ? `<span class="tag warn">忙碌</span>` : onThis ? `<span class="tag good">本组</span>` : ""}
+          </span>
+        </label>`;
+        })
         .join("")}
-    </div>`;
+      </div>`;
   }
   const footer = document.createElement("div");
   footer.style.cssText = "display:flex;gap:0.5rem;width:100%;justify-content:flex-end";
   footer.innerHTML = `<button class="btn ghost" id="m-cancel">取消</button>
-    <button class="btn primary" id="m-ok">确认</button>`;
+    <button class="btn" id="m-clear">清空</button>
+    <button class="btn primary" id="m-ok">确认分配</button>`;
   const p = showModal({ title, body, footer });
+
+  const syncCount = () => {
+    const n = body.querySelectorAll("input:checked:not(:disabled)").length;
+    const el = body.querySelector("#pick-count");
+    if (el) el.textContent = String(n);
+  };
+  body.querySelectorAll("input[type=checkbox]").forEach((inp) => {
+    inp.onchange = () => {
+      const checked = [...body.querySelectorAll("input:checked:not(:disabled)")];
+      if (checked.length > max) {
+        inp.checked = false;
+        toast(`最多 ${max} 人`, "err");
+      }
+      syncCount();
+    };
+  });
+  syncCount();
+
   return new Promise((resolve) => {
     footer.querySelector("#m-cancel").onclick = () => {
       closeModal();
       resolve(null);
     };
+    footer.querySelector("#m-clear").onclick = () => {
+      body.querySelectorAll("input:checked:not(:disabled)").forEach((i) => (i.checked = false));
+      syncCount();
+    };
     footer.querySelector("#m-ok").onclick = () => {
-      const ids = [...body.querySelectorAll("input:checked")].map((i) => i.value);
+      const ids = [...body.querySelectorAll("input:checked:not(:disabled)")].map((i) => i.value);
       closeModal();
       resolve(ids);
     };
@@ -865,14 +944,75 @@ function renderTraining() {
   $("#tr-active").innerHTML =
     active
       .map((j) => {
-        const pct = Math.min(100, (j.progress / j.needed) * 100);
-        return `<div class="stack-item"><div class="t">${esc(j.name)}</div>
-        <div class="s">${j.params_b}B · ${j.model_type} · 天${j.started_day}</div>
-        <div class="progress"><i style="width:${pct}%"></i></div></div>`;
+        const pct = Number(j.progress_pct != null ? j.progress_pct : Math.min(100, (j.progress / (j.needed || 1)) * 100));
+        const phases = j.phases || [];
+        const phaseHtml = phases.length
+          ? `<div class="phase-track">${phases
+              .map((p) => {
+                const at = Number(p.at || 0) * 100;
+                const cls = pct >= 100 || pct >= at + 15 ? "done" : pct >= at ? "on" : "";
+                return `<span class="${cls}">${esc(p.name)}</span>`;
+              })
+              .join("")}</div>`
+          : "";
+        const staff = (j.staff || []).map((s) => s.name).join("、") || "无人值守（极慢）";
+        const eta = j.eta_days != null ? `ETA ${j.eta_days}d` : j.paused ? "已暂停" : "—";
+        return `<div class="train-job">
+          <header>
+            <div>
+              <div class="nm">${esc(j.name)}</div>
+              <div class="muted">${j.params_b}B · ${esc(j.model_type)} · ${esc(j.phase || "")}</div>
+            </div>
+            <div class="tags">
+              <span class="tag">${pct.toFixed(0)}%</span>
+              <span class="tag">${eta}</span>
+            </div>
+          </header>
+          <div class="progress"><i style="width:${pct}%"></i></div>
+          ${phaseHtml}
+          <div class="staff-line">👤 ${esc(staff)}</div>
+          <div class="muted" style="font-size:0.78rem;margin-top:0.3rem">速度 ${Number(j.speed_per_day||0).toFixed(1)}/天 · 日耗 ${money(j.daily_cost||0)}</div>
+          <div style="display:flex;gap:0.35rem;margin-top:0.55rem;flex-wrap:wrap">
+            <button class="btn sm" data-tr-assign="${j.id}">调整人手</button>
+            <button class="btn sm ghost" data-tr-pause="${j.id}">${j.paused || !(j.employee_ids||[]).length ? "恢复/派人" : "撤人暂停"}</button>
+          </div>
+        </div>`;
       })
-      .join("") || empty("无训练任务");
+      .join("") || empty("无训练任务 — 立项后按天累积进度");
+
+  $all("#tr-active [data-tr-assign]").forEach((b) => {
+    b.onclick = () => assignTrainingJob(b.dataset.trAssign);
+  });
+  $all("#tr-active [data-tr-pause]").forEach((b) => {
+    b.onclick = async () => {
+      const job = (state.game.systems?.training?.active || []).find((j) => j.id === b.dataset.trPause);
+      if (!job) return;
+      if (job.employee_ids?.length) {
+        try { applyAction(await api.assignTraining(job.id, [])); } catch (e) { toast(e.message, "err"); }
+      } else {
+        assignTrainingJob(job.id);
+      }
+    };
+  });
 
   fillDistillTeachers();
+}
+
+async function assignTrainingJob(jobId) {
+  const job = (state.game.systems?.training?.active || []).find((j) => j.id === jobId);
+  if (!job) return;
+  const ids = await pickEmployeesModal(`训练人手 · ${job.name}`, {
+    preselected: job.employee_ids || [],
+    allowBusyOn: `train:${jobId}`,
+    hint: "训练进度按天累积。撤下全部人手会暂停（进度保留）。",
+    max: job.team_cap || 20,
+  });
+  if (ids === null) return;
+  try {
+    applyAction(await api.assignTraining(jobId, ids));
+  } catch (e) {
+    toast(e.message, "err");
+  }
 }
 
 function fillDistillTeachers() {

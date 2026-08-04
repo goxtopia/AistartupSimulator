@@ -61,6 +61,12 @@ def test_hire_and_research_and_train():
     assert r["ok"], r["message"]
     ds = r["data"]["dataset"]["id"]
 
+    # Let research accumulate a bit, then move the person onto training (GDT staff juggling)
+    st_r = e.advance(gid, 4)
+    cap = next(x for x in st_r["systems"]["research"]["catalog"]["model"] if x["id"] == "capacity")
+    assert cap["progress_pct"] > 0 or cap["level"] > 0
+
+    e.action(gid, "pause_research", {"research_id": "capacity"})
     r = e.action(
         gid,
         "start_training",
@@ -71,17 +77,29 @@ def test_hire_and_research_and_train():
             "dataset_id": ds,
             "from_scratch": True,
             "expected_days": 8,
-            "employee_ids": [],
+            "employee_ids": [emp],
         },
     )
     assert r["ok"], r["message"]
+    assert r["data"]["job"]["progress"] == 0
 
-    st2 = e.advance(gid, 20)
-    assert st2["day"] == 20
+    st_mid = e.advance(gid, 3)
+    active = st_mid["systems"]["training"]["active"]
+    if active:
+        assert active[0]["progress_pct"] > 0
+        r = e.action(gid, "assign_training", {"job_id": active[0]["id"], "employee_ids": [emp]})
+        assert r["ok"], r["message"]
+
+    st2 = e.advance(gid, 25)
+    assert st2["day"] >= 20
     models = st2["systems"]["training"]["models"]
     assert len(models) >= 1
     assert models[0]["hidden_score"] > 0
     assert "average" in models[0]["eval_scores"]
+
+    # paused research progress retained
+    cap2 = next(x for x in st2["systems"]["research"]["catalog"]["model"] if x["id"] == "capacity")
+    assert cap2["level"] > 0 or cap2["progress_pct"] > 0
 
     r = e.action(
         gid,
@@ -134,6 +152,30 @@ def test_china_has_ascend():
     assert any("ascend" in i for i in ids)
 
 
+def test_research_accumulates_and_levels():
+    e, st = _new()
+    gid = st["game_id"]
+    cand = st["systems"]["hr"]["candidates"][0]["id"]
+    emp = e.action(gid, "hire", {"candidate_id": cand})["data"]["employee"]["id"]
+    r = e.action(
+        gid,
+        "start_research",
+        {"research_id": "performance", "category": "model", "employee_ids": [emp]},
+    )
+    assert r["ok"], r["message"]
+    st1 = e.advance(gid, 5)
+    perf = next(x for x in st1["systems"]["research"]["catalog"]["model"] if x["id"] == "performance")
+    assert perf["focused"]
+    assert perf["progress_pct"] > 0 or perf["level"] > 0
+    saved = (perf["level"], perf["progress_pct"])
+    r = e.action(gid, "pause_research", {"research_id": "performance"})
+    assert r["ok"]
+    st2 = e.advance(gid, 5)
+    perf2 = next(x for x in st2["systems"]["research"]["catalog"]["model"] if x["id"] == "performance")
+    assert perf2["level"] == saved[0]
+    assert abs(perf2["progress_pct"] - saved[1]) < 1.0
+
+
 def test_ai_rivals_exist_and_act():
     e, st = _new()
     ai = st["systems"]["competitors"]
@@ -159,5 +201,6 @@ if __name__ == "__main__":
     test_save_load()
     test_hidden_score_monotonic_capacity()
     test_china_has_ascend()
+    test_research_accumulates_and_levels()
     test_ai_rivals_exist_and_act()
     print("all passed")

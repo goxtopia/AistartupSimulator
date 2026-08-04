@@ -149,6 +149,11 @@ def research_assign(body: AssignResearchRequest, x_game_id: str | None = Header(
     return _act(_gid(x_game_id), "assign_research", body.model_dump())
 
 
+@router.post("/research/pause")
+def research_pause(body: dict, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
+    return _act(_gid(x_game_id), "pause_research", body)
+
+
 @router.post("/compute/purchase")
 def compute_purchase(body: PurchaseComputeRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
     return _act(_gid(x_game_id), "purchase_compute", body.model_dump())
@@ -162,6 +167,11 @@ def create_dataset(body: CreateDatasetRequest, x_game_id: str | None = Header(de
 @router.post("/training/start")
 def start_training(body: StartTrainingRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
     return _act(_gid(x_game_id), "start_training", body.model_dump())
+
+
+@router.post("/training/assign")
+def assign_training(body: dict, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
+    return _act(_gid(x_game_id), "assign_training", body)
 
 
 @router.post("/training/distill")

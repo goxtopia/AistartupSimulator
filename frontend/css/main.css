@@ -487,8 +487,56 @@ select[multiple] { min-height: 110px; }
 .r-card .nm { font-weight: 700; }
 .r-card .lv { font-family: var(--mono); color: var(--accent); font-size: 0.85rem; }
 .r-card .desc { font-size: 0.82rem; color: var(--muted); flex: 1; }
-.r-card footer { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-top: 0.3rem; }
+.r-card footer { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-top: 0.3rem; flex-wrap: wrap; }
 .r-card .cost { font-size: 0.8rem; color: var(--faint); font-family: var(--mono); }
+.r-card.focused {
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.2), 0 8px 24px rgba(0,0,0,0.25);
+}
+.r-card .progress-meta {
+  display: flex; justify-content: space-between; gap: 0.5rem;
+  font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;
+  font-family: var(--mono);
+}
+.r-card .staff-line {
+  font-size: 0.8rem; color: var(--muted); margin-top: 0.35rem;
+  min-height: 1.2em;
+}
+.r-card .progress { height: 8px; margin-top: 0.55rem; }
+.r-card .progress > i {
+  background: linear-gradient(90deg, #38bdf8, #818cf8, #34d399);
+  transition: width 0.35s ease;
+}
+.phase-track {
+  display: flex; gap: 0.25rem; margin: 0.45rem 0 0.2rem; flex-wrap: wrap;
+}
+.phase-track span {
+  font-size: 0.68rem;
+  padding: 0.12rem 0.4rem;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  color: var(--faint);
+}
+.phase-track span.on {
+  color: var(--accent);
+  border-color: rgba(56,189,248,0.4);
+  background: rgba(56,189,248,0.1);
+}
+.phase-track span.done {
+  color: var(--good);
+  border-color: rgba(52,211,153,0.35);
+}
+.train-job {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.55rem;
+}
+.train-job header {
+  display: flex; justify-content: space-between; gap: 0.5rem; align-items: flex-start;
+}
+.train-job .nm { font-weight: 700; }
 
 .chip-grid {
   display: grid;

@@ -58,6 +58,8 @@ export const api = {
     req("/research/start", { method: "POST", body: { research_id, category, employee_ids } }),
   assignResearch: (research_id, category, employee_ids = []) =>
     req("/research/assign", { method: "POST", body: { research_id, category, employee_ids } }),
+  pauseResearch: (research_id) =>
+    req("/research/pause", { method: "POST", body: { research_id } }),
 
   purchaseCompute: (chip_id, quantity = 1, mode = "buy") =>
     req("/compute/purchase", { method: "POST", body: { chip_id, quantity, mode } }),
@@ -68,6 +70,8 @@ export const api = {
       body: { name, use_open_source_base, data_research_weights },
     }),
   startTraining: (payload) => req("/training/start", { method: "POST", body: payload }),
+  assignTraining: (job_id, employee_ids = []) =>
+    req("/training/assign", { method: "POST", body: { job_id, employee_ids } }),
   distill: (payload) => req("/training/distill", { method: "POST", body: payload }),
   releaseModel: (payload) => req("/training/release", { method: "POST", body: payload }),
   setPrice: (model_id, price_input, price_output) =>
