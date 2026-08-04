@@ -1,0 +1,46 @@
+{
+  "shapes": [
+    { "id": "circle", "name": "圆", "svg": "circle" },
+    { "id": "hexagon", "name": "六边形", "svg": "hexagon" },
+    { "id": "square", "name": "方", "svg": "square" },
+    { "id": "diamond", "name": "菱形", "svg": "diamond" },
+    { "id": "triangle", "name": "三角", "svg": "triangle" },
+    { "id": "ring", "name": "环", "svg": "ring" },
+    { "id": "shield", "name": "盾牌", "svg": "shield" },
+    { "id": "star", "name": "星", "svg": "star" }
+  ],
+  "icons": [
+    { "id": "brain", "name": "大脑", "path": "M12 2a7 7 0 0 0-7 7c0 2.5 1.2 4.2 2.5 5.5L6 20h4l.5-2h3l.5 2h4l-1.5-5.5C17.8 13.2 19 11.5 19 9a7 7 0 0 0-7-7z" },
+    { "id": "bolt", "name": "闪电", "path": "M13 2L4 14h7l-1 8 9-12h-7l1-8z" },
+    { "id": "atom", "name": "原子", "path": "M12 12m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M12 2c4 4 4 16 0 20 M12 2c-4 4-4 16 0 20 M2 12c4-4 16-4 20 0 M2 12c4 4 16 4 20 0" },
+    { "id": "chip", "name": "芯片", "path": "M6 6h12v12H6zM9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4" },
+    { "id": "network", "name": "网络", "path": "M5 12a2 2 0 1 0 0.01 0 M19 12a2 2 0 1 0 0.01 0 M12 5a2 2 0 1 0 0.01 0 M12 19a2 2 0 1 0 0.01 0 M7 12h10 M12 7v10" },
+    { "id": "rocket", "name": "火箭", "path": "M12 2c3 3 4 8 4 12l-4 4-4-4c0-4 1-9 4-12z M9 14l-3 5 M15 14l3 5 M12 8v4" },
+    { "id": "eye", "name": "之眼", "path": "M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12z M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0" },
+    { "id": "infinity", "name": "无限", "path": "M6 12c0-2 1.5-4 4-4 3 0 4 4 6 4s4-2 4-4-1.5-4-4-4-4 4-6 4-4-2-4-4 1.5-4 4-4 4 2 4 4-1.5 4-4 4c-3 0-4-4-6-4s-4 2-4 4 1.5 4 4 4c3 0 4-4 6-4s4 2 4 4" },
+    { "id": "spark", "name": "星火", "path": "M12 2l1.5 6.5L20 10l-6.5 1.5L12 18l-1.5-6.5L4 10l6.5-1.5z" },
+    { "id": "wave", "name": "波形", "path": "M2 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0" }
+  ],
+  "layouts": [
+    { "id": "icon_center", "name": "图标居中" },
+    { "id": "icon_top", "name": "图标靠上" },
+    { "id": "split_horizontal", "name": "左右分割" },
+    { "id": "badge", "name": "徽章" },
+    { "id": "monogram", "name": "字母组合" },
+    { "id": "stacked", "name": "层叠" }
+  ],
+  "palettes": [
+    { "id": "midnight", "bg": "#0f172a", "fg": "#38bdf8", "accent": "#818cf8" },
+    { "id": "ember", "bg": "#1c1917", "fg": "#f97316", "accent": "#fbbf24" },
+    { "id": "forest", "bg": "#052e16", "fg": "#4ade80", "accent": "#a3e635" },
+    { "id": "rose", "bg": "#1f0a14", "fg": "#fb7185", "accent": "#f472b6" },
+    { "id": "ocean", "bg": "#0c4a6e", "fg": "#67e8f9", "accent": "#38bdf8" },
+    { "id": "violet", "bg": "#2e1065", "fg": "#c4b5fd", "accent": "#a78bfa" },
+    { "id": "mono", "bg": "#18181b", "fg": "#fafafa", "accent": "#a1a1aa" },
+    { "id": "sunset", "bg": "#431407", "fg": "#fdba74", "accent": "#fb923c" },
+    { "id": "mint", "bg": "#022c22", "fg": "#6ee7b7", "accent": "#34d399" },
+    { "id": "crimson", "bg": "#450a0a", "fg": "#fca5a5", "accent": "#f87171" },
+    { "id": "gold", "bg": "#1c1917", "fg": "#fcd34d", "accent": "#f59e0b" },
+    { "id": "ice", "bg": "#e0f2fe", "fg": "#0369a1", "accent": "#0284c7" }
+  ]
+}

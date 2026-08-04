@@ -1,0 +1,161 @@
+{
+  "api_segments": {
+    "consumer": {
+      "id": "consumer",
+      "name": "普通用户",
+      "base_population": 1000000,
+      "pay_willingness": 0.15,
+      "quality_sensitivity": 0.8,
+      "price_sensitivity": 1.2,
+      "novelty_bias": 0.3,
+      "prefers_best": false,
+      "gov_relation_factor": 0.0,
+      "description": "数量多，需求低，付费意愿系数低，与模型质量成正比"
+    },
+    "code": {
+      "id": "code",
+      "name": "代码用户",
+      "base_population": 200000,
+      "pay_willingness": 0.65,
+      "quality_sensitivity": 1.3,
+      "price_sensitivity": 0.7,
+      "novelty_bias": 0.4,
+      "prefers_best": true,
+      "gov_relation_factor": 0.0,
+      "eval_focus": ["coding", "reasoning"],
+      "description": "数量中，消费意愿高，更倾向于最强模型"
+    },
+    "enthusiast": {
+      "id": "enthusiast",
+      "name": "体验用户",
+      "base_population": 80000,
+      "pay_willingness": 0.7,
+      "quality_sensitivity": 0.9,
+      "price_sensitivity": 0.5,
+      "novelty_bias": 1.5,
+      "prefers_best": false,
+      "gov_relation_factor": 0.0,
+      "description": "付费意愿高，更愿意尝试新模型"
+    },
+    "enterprise_gov": {
+      "id": "enterprise_gov",
+      "name": "政府企用户",
+      "base_population": 15000,
+      "pay_willingness": 2.5,
+      "quality_sensitivity": 1.0,
+      "price_sensitivity": 0.3,
+      "novelty_bias": 0.2,
+      "prefers_best": false,
+      "gov_relation_factor": 1.5,
+      "eval_focus": ["safety", "reasoning"],
+      "description": "付费意愿极高，额外受政府关系影响"
+    }
+  },
+  "eval_benchmarks": {
+    "mmlu": { "id": "mmlu", "name": "MMLU", "weight": 1.0, "noise": 0.05, "bias_from": ["performance", "capacity"] },
+    "humaneval": { "id": "humaneval", "name": "HumanEval", "weight": 1.0, "noise": 0.08, "bias_from": ["code", "cot", "performance"] },
+    "gsm8k": { "id": "gsm8k", "name": "GSM8K", "weight": 0.9, "noise": 0.06, "bias_from": ["cot", "rl", "performance"] },
+    "mt_bench": { "id": "mt_bench", "name": "MT-Bench", "weight": 0.85, "noise": 0.07, "bias_from": ["rl", "performance", "creative_writing"] },
+    "longbench": { "id": "longbench", "name": "LongBench", "weight": 0.7, "noise": 0.1, "bias_from": ["long_context"] },
+    "agentbench": { "id": "agentbench", "name": "AgentBench", "weight": 0.75, "noise": 0.12, "bias_from": ["agentic", "rl"] },
+    "safetybench": { "id": "safetybench", "name": "SafetyBench", "weight": 0.6, "noise": 0.05, "bias_from": ["harmlessness", "interpretability"] },
+    "mmmu": { "id": "mmmu", "name": "MMMU", "weight": 0.8, "noise": 0.1, "bias_from": ["performance"], "model_types": ["multimodal", "image", "anytoany"] }
+  },
+  "reputation": {
+    "hidden_to_rep_factor": 0.15,
+    "price_rep_factor": 0.1,
+    "open_source_rep_bonus": 5,
+    "open_source_hidden_scale": 0.05,
+    "rep_convergence_rate": 0.08,
+    "release_rep_impact": 0.25
+  },
+  "pricing": {
+    "default_input_per_m": 2.0,
+    "default_output_per_m": 6.0,
+    "open_source_price_lock_range": 1.0,
+    "min_price": 0.05,
+    "max_price": 100.0
+  },
+  "competitors_seed": [
+    {
+      "id": "openai_like",
+      "name": "AetherAI",
+      "strategy": "closed",
+      "country": "usa",
+      "strength": 0.9,
+      "open_ratio": 0.05,
+      "public_rep": 85,
+      "focus": ["performance", "rl", "agentic"]
+    },
+    {
+      "id": "anthropic_like",
+      "name": "Concord",
+      "strategy": "closed",
+      "country": "usa",
+      "strength": 0.85,
+      "open_ratio": 0.0,
+      "public_rep": 80,
+      "focus": ["harmlessness", "interpretability", "cot"]
+    },
+    {
+      "id": "meta_like",
+      "name": "OpenHerd",
+      "strategy": "open",
+      "country": "usa",
+      "strength": 0.8,
+      "open_ratio": 0.95,
+      "public_rep": 75,
+      "focus": ["capacity", "performance", "code"]
+    },
+    {
+      "id": "google_like",
+      "name": "DeepPrism",
+      "strategy": "mixed",
+      "country": "usa",
+      "strength": 0.88,
+      "open_ratio": 0.3,
+      "public_rep": 82,
+      "focus": ["multimodal", "performance", "long_context"]
+    },
+    {
+      "id": "mistral_like",
+      "name": "Mistral Wind",
+      "strategy": "open",
+      "country": "europe",
+      "strength": 0.7,
+      "open_ratio": 0.8,
+      "public_rep": 70,
+      "focus": ["speed", "performance", "code"]
+    },
+    {
+      "id": "zhipu_like",
+      "name": "智算矩阵",
+      "strategy": "mixed",
+      "country": "china",
+      "strength": 0.72,
+      "open_ratio": 0.4,
+      "public_rep": 65,
+      "focus": ["capacity", "code", "agentic"]
+    },
+    {
+      "id": "baichuan_like",
+      "name": "百川流",
+      "strategy": "open",
+      "country": "china",
+      "strength": 0.65,
+      "open_ratio": 0.7,
+      "public_rep": 58,
+      "focus": ["performance", "creative_writing"]
+    },
+    {
+      "id": "uae_like",
+      "name": "Falcon Peak",
+      "strategy": "open",
+      "country": "middle_east",
+      "strength": 0.6,
+      "open_ratio": 0.9,
+      "public_rep": 55,
+      "focus": ["capacity", "performance"]
+    }
+  ]
+}

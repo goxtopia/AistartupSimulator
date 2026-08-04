@@ -1,0 +1,138 @@
+{
+  "model_types": {
+    "text": {
+      "id": "text",
+      "name": "纯文本",
+      "name_en": "Text-only",
+      "description": "标准语言模型，训练难度最低，素材以文本为主。",
+      "difficulty": 1.0,
+      "data_requirements": {
+        "frontier_science": 0.3,
+        "code": 0.3,
+        "creative_writing": 0.2,
+        "industrial": 0.1,
+        "admin": 0.1
+      },
+      "compute_multiplier": 1.0,
+      "time_multiplier": 1.0,
+      "base_hidden_mult": 1.0,
+      "segment_affinity": {
+        "consumer": 1.0,
+        "code": 1.1,
+        "enthusiast": 0.9,
+        "enterprise_gov": 1.0
+      },
+      "min_params_b": 0.5,
+      "icon": "text"
+    },
+    "multimodal": {
+      "id": "multimodal",
+      "name": "多模态",
+      "name_en": "Multimodal",
+      "description": "文本+图像理解，需要更多算力与数据多样性。",
+      "difficulty": 1.5,
+      "data_requirements": {
+        "frontier_science": 0.25,
+        "code": 0.15,
+        "creative_writing": 0.25,
+        "industrial": 0.2,
+        "admin": 0.15
+      },
+      "compute_multiplier": 1.6,
+      "time_multiplier": 1.4,
+      "base_hidden_mult": 1.15,
+      "segment_affinity": {
+        "consumer": 1.3,
+        "code": 0.9,
+        "enthusiast": 1.4,
+        "enterprise_gov": 1.1
+      },
+      "min_params_b": 1.0,
+      "icon": "images"
+    },
+    "image": {
+      "id": "image",
+      "name": "图片模型",
+      "name_en": "Image Model",
+      "description": "图像生成/理解专用模型。",
+      "difficulty": 1.4,
+      "data_requirements": {
+        "creative_writing": 0.4,
+        "industrial": 0.3,
+        "frontier_science": 0.2,
+        "admin": 0.1
+      },
+      "compute_multiplier": 1.5,
+      "time_multiplier": 1.3,
+      "base_hidden_mult": 1.1,
+      "segment_affinity": {
+        "consumer": 1.4,
+        "code": 0.4,
+        "enthusiast": 1.6,
+        "enterprise_gov": 0.8
+      },
+      "min_params_b": 0.5,
+      "icon": "image"
+    },
+    "video": {
+      "id": "video",
+      "name": "视频模型",
+      "name_en": "Video Model",
+      "description": "视频生成/理解，算力与时间需求极高。",
+      "difficulty": 2.2,
+      "data_requirements": {
+        "creative_writing": 0.35,
+        "industrial": 0.25,
+        "frontier_science": 0.25,
+        "admin": 0.15
+      },
+      "compute_multiplier": 3.0,
+      "time_multiplier": 2.0,
+      "base_hidden_mult": 1.3,
+      "segment_affinity": {
+        "consumer": 1.5,
+        "code": 0.3,
+        "enthusiast": 1.8,
+        "enterprise_gov": 0.9
+      },
+      "min_params_b": 2.0,
+      "icon": "video"
+    },
+    "anytoany": {
+      "id": "anytoany",
+      "name": "Any-to-Any",
+      "name_en": "Any-to-Any",
+      "description": "任意模态互转的统一模型，最前沿也最难。",
+      "difficulty": 2.8,
+      "data_requirements": {
+        "frontier_science": 0.25,
+        "code": 0.2,
+        "creative_writing": 0.2,
+        "industrial": 0.2,
+        "admin": 0.15
+      },
+      "compute_multiplier": 3.5,
+      "time_multiplier": 2.5,
+      "base_hidden_mult": 1.5,
+      "segment_affinity": {
+        "consumer": 1.4,
+        "code": 1.0,
+        "enthusiast": 2.0,
+        "enterprise_gov": 1.2
+      },
+      "min_params_b": 3.0,
+      "icon": "infinity"
+    }
+  },
+  "param_presets": [
+    { "params_b": 1, "label": "1B", "compute_units": 10 },
+    { "params_b": 3, "label": "3B", "compute_units": 25 },
+    { "params_b": 7, "label": "7B", "compute_units": 60 },
+    { "params_b": 13, "label": "13B", "compute_units": 120 },
+    { "params_b": 34, "label": "34B", "compute_units": 350 },
+    { "params_b": 70, "label": "70B", "compute_units": 800 },
+    { "params_b": 180, "label": "180B", "compute_units": 2200 },
+    { "params_b": 400, "label": "400B", "compute_units": 5500 },
+    { "params_b": 1000, "label": "1T", "compute_units": 15000 }
+  ]
+}

@@ -1,0 +1,381 @@
+{
+  "model_research": {
+    "capacity": {
+      "id": "capacity",
+      "name": "模型容量",
+      "name_en": "Model Capacity",
+      "category": "model",
+      "description": "提升可训练的最大参数规模与稳定训练能力。作为隐藏分的 base。",
+      "max_level": 20,
+      "base_cost": 50000,
+      "cost_growth": 1.45,
+      "base_time_days": 14,
+      "time_growth": 1.2,
+      "required_skills": { "ml_theory": 1, "systems": 1 },
+      "effects": {
+        "hidden_score_base": 10,
+        "max_params_b": 1.5,
+        "innovation": 2
+      },
+      "team_cap": 20,
+      "icon": "layers"
+    },
+    "performance": {
+      "id": "performance",
+      "name": "模型性能（架构）",
+      "name_en": "Architecture Performance",
+      "category": "model",
+      "description": "架构创新提升推理质量与评测表现。",
+      "max_level": 20,
+      "base_cost": 60000,
+      "cost_growth": 1.5,
+      "base_time_days": 18,
+      "time_growth": 1.22,
+      "required_skills": { "ml_theory": 2, "architecture": 1 },
+      "effects": {
+        "hidden_score_mult": 0.08,
+        "eval_bias": 0.05,
+        "innovation": 3
+      },
+      "team_cap": 20,
+      "icon": "cpu"
+    },
+    "speed": {
+      "id": "speed",
+      "name": "模型速度（架构）",
+      "name_en": "Architecture Speed",
+      "category": "model",
+      "description": "降低延迟、提高吞吐，影响 API 成本效率。",
+      "max_level": 20,
+      "base_cost": 45000,
+      "cost_growth": 1.4,
+      "base_time_days": 12,
+      "time_growth": 1.18,
+      "required_skills": { "systems": 2, "architecture": 1 },
+      "effects": {
+        "inference_speed_mult": 0.1,
+        "api_cost_efficiency": 0.06,
+        "innovation": 2
+      },
+      "team_cap": 20,
+      "icon": "zap"
+    },
+    "long_context": {
+      "id": "long_context",
+      "name": "长 Context",
+      "name_en": "Long Context",
+      "category": "model",
+      "description": "扩展有效上下文窗口，利好代码与企业场景。",
+      "max_level": 15,
+      "base_cost": 55000,
+      "cost_growth": 1.48,
+      "base_time_days": 16,
+      "time_growth": 1.25,
+      "required_skills": { "ml_theory": 2, "systems": 2 },
+      "effects": {
+        "context_tokens_k": 8,
+        "hidden_score_mult": 0.04,
+        "code_segment_bonus": 0.08,
+        "innovation": 2
+      },
+      "team_cap": 20,
+      "icon": "scroll"
+    },
+    "rl": {
+      "id": "rl",
+      "name": "强化学习 (RL)",
+      "name_en": "Reinforcement Learning",
+      "category": "model",
+      "description": "RLHF/RLAIF 等后训练，提升对齐与复杂任务表现。",
+      "max_level": 15,
+      "base_cost": 70000,
+      "cost_growth": 1.55,
+      "base_time_days": 20,
+      "time_growth": 1.28,
+      "required_skills": { "ml_theory": 3, "rl": 1 },
+      "effects": {
+        "hidden_score_mult": 0.07,
+        "alignment_bonus": 0.05,
+        "agentic_bonus": 0.04,
+        "innovation": 3
+      },
+      "team_cap": 20,
+      "icon": "refresh"
+    },
+    "harmlessness": {
+      "id": "harmlessness",
+      "name": "无害性",
+      "name_en": "Harmlessness",
+      "category": "model",
+      "description": "安全对齐与有害内容过滤，影响政企采纳与声誉。",
+      "max_level": 15,
+      "base_cost": 40000,
+      "cost_growth": 1.35,
+      "base_time_days": 10,
+      "time_growth": 1.15,
+      "required_skills": { "alignment": 1, "ml_theory": 1 },
+      "effects": {
+        "safety_score": 0.1,
+        "gov_segment_bonus": 0.1,
+        "public_rep_on_release": 1.5,
+        "innovation": 1
+      },
+      "team_cap": 15,
+      "icon": "shield"
+    },
+    "interpretability": {
+      "id": "interpretability",
+      "name": "可解读性",
+      "name_en": "Interpretability",
+      "category": "model",
+      "description": "提升模型透明性与可解释输出，直接推动公司透明性倾向。",
+      "max_level": 15,
+      "base_cost": 50000,
+      "cost_growth": 1.42,
+      "base_time_days": 15,
+      "time_growth": 1.2,
+      "required_skills": { "ml_theory": 2, "alignment": 2 },
+      "effects": {
+        "transparency_bonus": 3,
+        "gov_segment_bonus": 0.06,
+        "europe_bonus": 0.12,
+        "innovation": 2
+      },
+      "team_cap": 15,
+      "icon": "eye"
+    },
+    "cot": {
+      "id": "cot",
+      "name": "思维链 (CoT)",
+      "name_en": "Chain of Thought",
+      "category": "model",
+      "description": "强化逐步推理能力，提升复杂评测与代码场景。",
+      "max_level": 15,
+      "base_cost": 55000,
+      "cost_growth": 1.48,
+      "base_time_days": 14,
+      "time_growth": 1.22,
+      "required_skills": { "ml_theory": 2, "architecture": 1 },
+      "effects": {
+        "hidden_score_mult": 0.06,
+        "eval_reasoning_bias": 0.12,
+        "code_segment_bonus": 0.06,
+        "innovation": 3
+      },
+      "team_cap": 20,
+      "icon": "brain"
+    },
+    "agentic": {
+      "id": "agentic",
+      "name": "Agentic（工具能力）",
+      "name_en": "Agentic / Tool Use",
+      "category": "model",
+      "description": "工具调用、规划与多步执行能力。",
+      "max_level": 15,
+      "base_cost": 65000,
+      "cost_growth": 1.52,
+      "base_time_days": 18,
+      "time_growth": 1.26,
+      "required_skills": { "ml_theory": 2, "systems": 2, "architecture": 1 },
+      "effects": {
+        "hidden_score_mult": 0.05,
+        "agent_capability": 0.12,
+        "enterprise_bonus": 0.08,
+        "innovation": 3
+      },
+      "team_cap": 20,
+      "icon": "bot"
+    }
+  },
+  "data_research": {
+    "frontier_science": {
+      "id": "frontier_science",
+      "name": "前沿科学",
+      "name_en": "Frontier Science",
+      "category": "data",
+      "description": "科学论文、实验与推理语料，提升通用与推理能力。",
+      "max_level": 15,
+      "base_cost": 40000,
+      "cost_growth": 1.4,
+      "base_time_days": 12,
+      "time_growth": 1.2,
+      "required_skills": { "data_eng": 1, "ml_theory": 1 },
+      "effects": {
+        "data_quality": 0.08,
+        "domain_bonus": { "science": 0.15 },
+        "innovation": 2
+      },
+      "team_cap": 15,
+      "icon": "flask"
+    },
+    "code": {
+      "id": "code",
+      "name": "代码",
+      "name_en": "Code Data",
+      "category": "data",
+      "description": "高质量代码与仓库语料，显著提升代码用户吸引力。",
+      "max_level": 15,
+      "base_cost": 35000,
+      "cost_growth": 1.38,
+      "base_time_days": 10,
+      "time_growth": 1.18,
+      "required_skills": { "data_eng": 1, "systems": 1 },
+      "effects": {
+        "data_quality": 0.07,
+        "domain_bonus": { "code": 0.2 },
+        "code_segment_bonus": 0.1,
+        "innovation": 2
+      },
+      "team_cap": 15,
+      "icon": "code"
+    },
+    "creative_writing": {
+      "id": "creative_writing",
+      "name": "创意写作",
+      "name_en": "Creative Writing",
+      "category": "data",
+      "description": "文学与创意内容，提升消费与体验用户满意度。",
+      "max_level": 12,
+      "base_cost": 25000,
+      "cost_growth": 1.3,
+      "base_time_days": 8,
+      "time_growth": 1.15,
+      "required_skills": { "data_eng": 1 },
+      "effects": {
+        "data_quality": 0.05,
+        "domain_bonus": { "creative": 0.18 },
+        "consumer_bonus": 0.08,
+        "innovation": 1
+      },
+      "team_cap": 12,
+      "icon": "pen"
+    },
+    "industrial": {
+      "id": "industrial",
+      "name": "工业",
+      "name_en": "Industrial",
+      "category": "data",
+      "description": "工业文档、手册与流程数据，利好企业场景。",
+      "max_level": 12,
+      "base_cost": 45000,
+      "cost_growth": 1.42,
+      "base_time_days": 14,
+      "time_growth": 1.2,
+      "required_skills": { "data_eng": 2 },
+      "effects": {
+        "data_quality": 0.06,
+        "domain_bonus": { "industrial": 0.2 },
+        "enterprise_bonus": 0.1,
+        "innovation": 1
+      },
+      "team_cap": 12,
+      "icon": "cog"
+    },
+    "admin": {
+      "id": "admin",
+      "name": "行政",
+      "name_en": "Administration",
+      "category": "data",
+      "description": "公文、流程与办公语料，利好政企 API。",
+      "max_level": 12,
+      "base_cost": 30000,
+      "cost_growth": 1.32,
+      "base_time_days": 10,
+      "time_growth": 1.15,
+      "required_skills": { "data_eng": 1 },
+      "effects": {
+        "data_quality": 0.04,
+        "domain_bonus": { "admin": 0.18 },
+        "gov_segment_bonus": 0.12,
+        "innovation": 1
+      },
+      "team_cap": 12,
+      "icon": "briefcase"
+    },
+    "nsfw": {
+      "id": "nsfw",
+      "name": "NSFW 内容策略",
+      "name_en": "NSFW Policy",
+      "category": "data",
+      "description": "是否纳入/过滤成人内容。影响特定用户群与监管风险。",
+      "max_level": 5,
+      "base_cost": 20000,
+      "cost_growth": 1.5,
+      "base_time_days": 7,
+      "time_growth": 1.3,
+      "required_skills": { "data_eng": 1, "alignment": 1 },
+      "effects": {
+        "nsfw_capability": 0.2,
+        "enthusiast_bonus": 0.15,
+        "gov_segment_bonus": -0.15,
+        "regulation_risk": 0.1,
+        "innovation": 0
+      },
+      "team_cap": 8,
+      "icon": "alert"
+    }
+  },
+  "compute_research": {
+    "kernel_opt": {
+      "id": "kernel_opt",
+      "name": "Kernel 优化",
+      "name_en": "Kernel Optimization",
+      "category": "compute",
+      "description": "算子与内核级优化，提升已有芯片有效算力。",
+      "max_level": 15,
+      "base_cost": 40000,
+      "cost_growth": 1.4,
+      "base_time_days": 12,
+      "time_growth": 1.2,
+      "required_skills": { "systems": 3, "cuda": 1 },
+      "effects": {
+        "compute_efficiency": 0.08,
+        "effective_flops_mult": 0.07,
+        "innovation": 2
+      },
+      "team_cap": 12,
+      "icon": "terminal"
+    },
+    "asic": {
+      "id": "asic",
+      "name": "ASIC 加速",
+      "name_en": "ASIC Acceleration",
+      "category": "compute",
+      "description": "针对自研/合作 ASIC 的适配与调度。",
+      "max_level": 12,
+      "base_cost": 80000,
+      "cost_growth": 1.55,
+      "base_time_days": 25,
+      "time_growth": 1.3,
+      "required_skills": { "systems": 3, "hardware": 2 },
+      "effects": {
+        "asic_efficiency": 0.12,
+        "compute_cost_reduction": 0.05,
+        "innovation": 3
+      },
+      "team_cap": 15,
+      "icon": "chip"
+    },
+    "quant_aware": {
+      "id": "quant_aware",
+      "name": "量化感知",
+      "name_en": "Quantization-Aware Training",
+      "category": "compute",
+      "description": "低比特训练与推理，大幅降低推理成本。",
+      "max_level": 12,
+      "base_cost": 50000,
+      "cost_growth": 1.45,
+      "base_time_days": 14,
+      "time_growth": 1.22,
+      "required_skills": { "ml_theory": 2, "systems": 2 },
+      "effects": {
+        "quant_efficiency": 0.1,
+        "inference_cost_reduction": 0.12,
+        "speed_bonus": 0.06,
+        "innovation": 2
+      },
+      "team_cap": 12,
+      "icon": "binary"
+    }
+  }
+}

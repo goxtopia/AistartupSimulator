@@ -1,0 +1,119 @@
+{
+  "skills": {
+    "ml_theory": { "id": "ml_theory", "name": "ML 理论", "max": 100 },
+    "architecture": { "id": "architecture", "name": "架构设计", "max": 100 },
+    "systems": { "id": "systems", "name": "系统工程", "max": 100 },
+    "data_eng": { "id": "data_eng", "name": "数据工程", "max": 100 },
+    "rl": { "id": "rl", "name": "强化学习", "max": 100 },
+    "alignment": { "id": "alignment", "name": "对齐/安全", "max": 100 },
+    "cuda": { "id": "cuda", "name": "CUDA/内核", "max": 100 },
+    "hardware": { "id": "hardware", "name": "硬件适配", "max": 100 },
+    "product": { "id": "product", "name": "产品感", "max": 100 },
+    "management": { "id": "management", "name": "管理", "max": 100 }
+  },
+  "tendencies": {
+    "openness": {
+      "id": "openness",
+      "name": "开放性",
+      "description": "偏好开源。公司开源模型比重越高越满意。",
+      "compute": "open_source_ratio",
+      "weight_default": 1.0
+    },
+    "gov_relation": {
+      "id": "gov_relation",
+      "name": "政府关系",
+      "description": "看重与政府/大型企业合作深度。",
+      "compute": "gov_relation",
+      "weight_default": 1.0
+    },
+    "public_rep": {
+      "id": "public_rep",
+      "name": "公众声誉",
+      "description": "关注模型质量、价格与开放性带来的公众形象。",
+      "compute": "public_rep",
+      "weight_default": 1.0
+    },
+    "transparency": {
+      "id": "transparency",
+      "name": "透明性",
+      "description": "受可解读性研究推动；政府关系越高，透明性基数越低。",
+      "compute": "transparency",
+      "weight_default": 1.0
+    },
+    "innovation": {
+      "id": "innovation",
+      "name": "创新性",
+      "description": "与全部模型研究进展挂钩。",
+      "compute": "innovation",
+      "weight_default": 1.0
+    }
+  },
+  "hidden_tags": {
+    "night_owl": { "id": "night_owl", "name": "夜猫子", "effect": { "research_speed": 0.05 }, "desc": "夜间研究效率 +5%" },
+    "perfectionist": { "id": "perfectionist", "name": "完美主义", "effect": { "quality": 0.08, "speed": -0.05 }, "desc": "质量 +8%，速度 -5%" },
+    "open_source_zealot": { "id": "open_source_zealot", "name": "开源原教旨", "effect": { "openness_sensitivity": 0.5 }, "desc": "对开放性极度敏感" },
+    "gov_friendly": { "id": "gov_friendly", "name": "红顶学者", "effect": { "gov_sensitivity": 0.4 }, "desc": "看重政府项目" },
+    "job_hopper": { "id": "job_hopper", "name": "跳槽达人", "effect": { "leave_chance": 0.15 }, "desc": "更容易被挖或离职" },
+    "loyalist": { "id": "loyalist", "name": "死忠粉", "effect": { "leave_chance": -0.2 }, "desc": "忠诚度高，难挖难走" },
+    "polymath": { "id": "polymath", "name": "通才", "effect": { "cross_train": 0.1 }, "desc": "跨领域学习 +10%" },
+    "specialist": { "id": "specialist", "name": "偏科怪才", "effect": { "main_skill_bonus": 0.15, "other_skill_penalty": -0.05 }, "desc": "主技能成长快，其他慢" },
+    "media_savvy": { "id": "media_savvy", "name": "媒体达人", "effect": { "public_rep_on_hire": 2 }, "desc": "入职带来声誉" },
+    "burnout_risk": { "id": "burnout_risk", "name": "过劳体质", "effect": { "fatigue_rate": 0.2 }, "desc": "疲劳累积更快" },
+    "mentor": { "id": "mentor", "name": "良师", "effect": { "team_xp": 0.1 }, "desc": "提升团队成长" },
+    "prima_donna": { "id": "prima_donna", "name": "大牌脾气", "effect": { "salary_demand": 0.2, "quality": 0.1 }, "desc": "要价高但产出高" },
+    "security_clearance": { "id": "security_clearance", "name": "保密资质", "effect": { "gov_project_unlock": true }, "desc": "可参与涉密政企项目" },
+    "paper_machine": { "id": "paper_machine", "name": "发论文机器", "effect": { "innovation": 0.05, "public_rep_passive": 0.5 }, "desc": "持续带来创新与声誉" }
+  },
+  "roles": {
+    "scientist": { "id": "scientist", "name": "ML/AI 科学家", "salary_base": 18000, "skill_focus": ["ml_theory", "architecture", "rl"] },
+    "engineer": { "id": "engineer", "name": "AI 工程师", "salary_base": 14000, "skill_focus": ["systems", "cuda", "architecture"] },
+    "data": { "id": "data", "name": "数据专家", "salary_base": 12000, "skill_focus": ["data_eng", "alignment"] },
+    "alignment": { "id": "alignment", "name": "对齐研究员", "salary_base": 16000, "skill_focus": ["alignment", "ml_theory", "rl"] },
+    "infra": { "id": "infra", "name": "基础设施", "salary_base": 15000, "skill_focus": ["systems", "hardware", "cuda"] },
+    "manager": { "id": "manager", "name": "研究经理", "salary_base": 20000, "skill_focus": ["management", "product", "ml_theory"] }
+  },
+  "name_pools": {
+    "china": {
+      "family": ["王", "李", "张", "刘", "陈", "杨", "黄", "赵", "周", "吴", "徐", "孙", "马", "朱", "胡", "郭", "何", "林"],
+      "given_m": ["伟", "强", "磊", "洋", "勇", "军", "杰", "涛", "超", "明", "浩", "宇", "鹏", "飞", "凯", "博"],
+      "given_f": ["芳", "娜", "敏", "静", "丽", "艳", "婷", "雪", "倩", "欣", "悦", "琳", "颖", "慧", "佳"]
+    },
+    "usa": {
+      "family": ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Wilson", "Moore", "Taylor", "Anderson", "Thomas", "Jackson", "White", "Harris", "Martin", "Lee", "Kim", "Patel"],
+      "given_m": ["James", "John", "Robert", "Michael", "David", "William", "Richard", "Joseph", "Thomas", "Christopher", "Daniel", "Matthew", "Anthony", "Mark", "Steven", "Andrew"],
+      "given_f": ["Mary", "Patricia", "Jennifer", "Linda", "Elizabeth", "Barbara", "Susan", "Jessica", "Sarah", "Karen", "Lisa", "Nancy", "Emily", "Emma", "Olivia", "Sophia"]
+    },
+    "japan": {
+      "family": ["佐藤", "鈴木", "高橋", "田中", "伊藤", "渡辺", "山本", "中村", "小林", "加藤", "吉田", "山田", "佐々木", "山口"],
+      "given_m": ["翔太", "蓮", "大輝", "健太", "拓也", "誠", "裕太", "直樹", "健", "悠真", "陽翔", "湊"],
+      "given_f": ["美咲", "陽菜", "結衣", "葵", "凛", "さくら", "結菜", "澪", "心春", "莉子", "花"]
+    },
+    "korea": {
+      "family": ["김", "이", "박", "최", "정", "강", "조", "윤", "장", "임", "한", "오", "서", "신"],
+      "given_m": ["민준", "서준", "도윤", "예준", "시우", "하준", "주원", "지호", "준서", "건우"],
+      "given_f": ["서연", "서윤", "지우", "서현", "민서", "하은", "하윤", "윤서", "지민", "채원"]
+    },
+    "europe": {
+      "family": ["Müller", "Schmidt", "Schneider", "Fischer", "Weber", "Meyer", "Wagner", "Becker", "Martin", "Bernard", "Dubois", "Petit", "Rossi", "Russo", "Ferrari", "Esposito", "Silva", "Santos", "Oliveira", "Nowak"],
+      "given_m": ["Luca", "Hugo", "Louis", "Noah", "Leon", "Paul", "Gabriel", "Arthur", "Jules", "Felix", "Marco", "Alessandro"],
+      "given_f": ["Emma", "Mia", "Hannah", "Sofia", "Alice", "Chloé", "Léa", "Marie", "Giulia", "Francesca", "Anna", "Lena"]
+    },
+    "middle_east": {
+      "family": ["Al-Rashid", "Al-Hassan", "Al-Farsi", "Khan", "Ahmed", "Hassan", "Ali", "Ibrahim", "Rahman", "Nasser", "Saleh", "Mansour"],
+      "given_m": ["Omar", "Yusuf", "Hassan", "Ali", "Ahmed", "Khalid", "Faisal", "Tariq", "Zaid", "Karim"],
+      "given_f": ["Fatima", "Aisha", "Layla", "Maryam", "Noor", "Sara", "Hana", "Leila", "Amira", "Yasmin"]
+    },
+    "india": {
+      "family": ["Sharma", "Patel", "Singh", "Kumar", "Gupta", "Reddy", "Nair", "Iyer", "Mehta", "Joshi", "Rao", "Chopra", "Banerjee", "Desai"],
+      "given_m": ["Arjun", "Rohan", "Vikram", "Aditya", "Rahul", "Karan", "Aryan", "Dev", "Nikhil", "Siddharth"],
+      "given_f": ["Priya", "Ananya", "Isha", "Sneha", "Kavya", "Meera", "Diya", "Aisha", "Neha", "Pooja"]
+    }
+  },
+  "seniority_levels": [
+    { "id": "junior", "name": "初级", "skill_range": [10, 35], "salary_mult": 0.7, "xp_mult": 1.3 },
+    { "id": "mid", "name": "中级", "skill_range": [30, 60], "salary_mult": 1.0, "xp_mult": 1.0 },
+    { "id": "senior", "name": "高级", "skill_range": [55, 80], "salary_mult": 1.6, "xp_mult": 0.8 },
+    { "id": "staff", "name": "Staff", "skill_range": [70, 92], "salary_mult": 2.4, "xp_mult": 0.6 },
+    { "id": "principal", "name": "Principal", "skill_range": [85, 100], "salary_mult": 3.5, "xp_mult": 0.4 }
+  ]
+}
