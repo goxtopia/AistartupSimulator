@@ -175,6 +175,7 @@ class HRSystem:
         return True, f"{emp['name']} 的 {skills_cfg[skill]['name']} → {skills[skill]}"
 
     def try_poach(self, state: dict[str, Any], ctx, company_id: str, offer_mult: float = 1.5) -> tuple[bool, str, dict | None]:
+        """Poach a real employee from a rival roster (falls back to generated talent)."""
         hr = state.setdefault("hr", {})
         if hr.get("poach_cooldown", 0) > 0:
             return False, f"挖角冷却中（{hr['poach_cooldown']} 天）", None
@@ -183,34 +184,58 @@ class HRSystem:
         if not comp:
             return False, "目标公司不存在", None
 
-        cfg = ctx.configs().load("employees")
-        # Generate a talent from that company
-        person = self._gen_person(state, ctx, cfg, comp.get("country", state["company"]["country"]), for_hire=True)
+        rng = ctx.rng()
+        roster = list(comp.get("employees") or [])
+        from_roster = bool(roster)
+        if from_roster:
+            # Prefer higher-skill targets
+            def power(e: dict) -> float:
+                skills = e.get("skills") or {}
+                return sum(float(v) for v in skills.values()) / max(len(skills), 1) + {
+                    "junior": 0, "mid": 5, "senior": 15, "staff": 25, "principal": 35
+                }.get(e.get("seniority"), 0)
+
+            ranked = sorted(roster, key=power, reverse=True)
+            person = dict(rng.choice(ranked[: min(5, len(ranked))]))
+        else:
+            cfg = ctx.configs().load("employees")
+            person = self._gen_person(
+                state, ctx, cfg, comp.get("country", state["company"]["country"]), for_hire=True
+            )
+
         person["from_company"] = comp["name"]
-        seniority = person.get("seniority", "mid")
-        # Higher chance if we pay more and our rep is good
-        base_p = 0.15 + (offer_mult - 1.0) * 0.12
-        base_p += state["company"]["tendencies"].get("public_rep", 20) / 500.0
-        base_p -= comp.get("strength", 0.5) * 0.1
+        base_p = 0.12 + (offer_mult - 1.0) * 0.12
+        base_p += float(state["company"].get("tendencies", {}).get("public_rep", 20)) / 500.0
+        base_p -= float(comp.get("strength", 0.5)) * 0.12
+        base_p -= {"titan": 0.08, "challenger": 0.03, "startup": -0.05}.get(comp.get("tier"), 0)
         if "job_hopper" in person.get("hidden_tags", []):
             base_p += 0.15
         if "loyalist" in person.get("hidden_tags", []):
             base_p -= 0.2
 
-        cost = float(person["salary"]) * 2 * offer_mult + float(person.get("signing_bonus", 0)) * offer_mult
+        cost = float(person.get("salary", 15000)) * 2 * offer_mult + float(
+            person.get("signing_bonus", person.get("salary", 15000))
+        ) * offer_mult
         if state["company"]["capital"] < cost:
             return False, f"资金不足（需要 ${cost:,.0f}）", None
 
         state["company"]["capital"] -= cost * 0.3  # search cost always
         hr["poach_cooldown"] = 14
-        if ctx.rng().random() < clamp(base_p, 0.02, 0.75):
+        if rng.random() < clamp(base_p, 0.02, 0.75):
             state["company"]["capital"] -= cost * 0.7
-            person["salary"] = round(person["salary"] * offer_mult, 0)
+            # remove from rival roster if real
+            if from_roster:
+                comp["employees"] = [e for e in roster if e.get("id") != person.get("id")]
+            person["salary"] = round(float(person.get("salary", 15000)) * offer_mult, 0)
             person["hired_day"] = state.get("day", 0)
             person["revealed_tags"] = True
             person["hidden_tags_visible"] = list(person.get("hidden_tags", []))
-            person["morale"] = 75
+            person["morale"] = 78
+            person["employer"] = "player"
+            person.pop("assigned_to", None)
             state.setdefault("employees", []).append(person)
+            # rival may retaliate with shorter poach cooldown
+            comp["poach_cooldown"] = min(int(comp.get("poach_cooldown", 0)), 3)
             return True, f"成功从 {comp['name']} 挖到 {person['name']}！", person
         return False, f"挖角失败（已支付搜寻费 ${cost*0.3:,.0f}）", None
 

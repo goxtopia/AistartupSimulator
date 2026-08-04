@@ -378,8 +378,11 @@ async function advance(days) {
     applyState(r.state);
     const evs = r.state.tick_events || [];
     if (evs.length) {
-      const last = evs.slice(-3);
-      last.forEach((e) => e.msg && toast(e.msg));
+      // Prioritize poach alerts
+      const poaches = evs.filter((e) => e.type === "poach_success");
+      const rest = evs.filter((e) => e.type !== "poach_success");
+      poaches.forEach((e) => e.msg && toast(e.msg, "err"));
+      rest.slice(-3).forEach((e) => e.msg && toast(e.msg));
     }
     // auto jump to events if queue
     const q = r.state.systems?.events?.queue || [];
@@ -529,14 +532,21 @@ function renderHR() {
     b.onclick = () => hrAct(b.dataset.act, b.dataset.id);
   });
 
-  const comps = g.systems?.market?.competitors || [];
+  const comps =
+    g.systems?.competitors?.rivals ||
+    g.systems?.competitors?.competitors ||
+    g.systems?.market?.competitors ||
+    [];
   $("#poach-list").innerHTML = comps
     .map(
       (c) =>
-        `<button class="btn sm" data-poach="${c.id}">挖角 ${esc(c.name)}（${c.strategy}）</button>`
+        `<button class="btn sm" data-poach="${c.id}" title="${esc(c.personality || "")}">
+          挖角 ${esc(c.name)}
+          <span class="muted">（${esc(c.strategy_name || c.strategy || "")} · 员工${c.employee_count ?? "?"}）</span>
+        </button>`
     )
     .join("");
-  $all("[data-poach]").forEach((b) => {
+  $all("#poach-list [data-poach]").forEach((b) => {
     b.onclick = async () => {
       try {
         const r = await api.poach(b.dataset.poach, 1.5);
@@ -1026,6 +1036,17 @@ function renderMarket() {
   const g = state.game;
   const segs = g.systems?.market?.segments || {};
   const users = g.systems?.market?.segment_users || {};
+  const ai = g.systems?.competitors || {};
+  const threat = Number(ai.threat_index || 0);
+
+  if ($("#threat-pill")) {
+    const threatColor = threat > 70 ? "var(--bad)" : threat > 40 ? "var(--warn)" : "var(--good)";
+    $("#threat-pill").innerHTML = `
+      <span class="pill" style="border-color:${threatColor};color:${threatColor}">竞争压力 ${threat.toFixed(0)}</span>
+      <span class="pill">对手 ${ (ai.rivals || ai.competitors || []).length }</span>
+      <span class="pill">竞品模型 ${ (ai.models || []).length }</span>`;
+  }
+
   $("#market-segments").innerHTML = Object.values(segs)
     .map((s) => {
       return `<div class="stack-item">
@@ -1040,15 +1061,93 @@ function renderMarket() {
     })
     .join("");
 
-  const comps = g.systems?.market?.competitors || [];
+  const log = ai.action_log || [];
+  if ($("#rival-log")) {
+    $("#rival-log").innerHTML = log.length
+      ? log
+          .slice()
+          .reverse()
+          .map(
+            (l) =>
+              `<div class="log-line"><span class="d">D${l.day}</span><span class="m">${esc(l.msg)}</span></div>`
+          )
+          .join("")
+      : empty("推进天数后，对手会研究、发模型、挖角…");
+  }
+
+  const comps = ai.rivals || ai.competitors || g.systems?.market?.competitors || [];
   $("#market-comps").innerHTML = comps
-    .map(
-      (c) => `<div class="stack-item">
-      <div class="t">${esc(c.name)} <span class="tag">${c.strategy}</span></div>
-      <div class="s">实力 ${(c.strength * 100).toFixed(0)} · 声誉 ${c.public_rep} · 开源比 ${(c.open_ratio * 100).toFixed(0)}%</div>
-    </div>`
-    )
-    .join("");
+    .map((c) => {
+      const fs = c.flagship;
+      const tier = c.tier || "challenger";
+      const topRes = (c.top_research || [])
+        .slice(0, 3)
+        .map((r) => `<span class="tag">${esc(r.id)} ${r.level}</span>`)
+        .join("");
+      return `<div class="rival-card" style="--rc:${c.color || "#38bdf8"}">
+        <header>
+          <div>
+            <div class="nm">${esc(c.name)}</div>
+            <div class="muted">${esc(c.strategy_name || c.strategy || "")} · <span class="tier-${tier}">${tier}</span></div>
+          </div>
+          <div class="tags">
+            <span class="tag">实力 ${((c.strength || 0) * 100).toFixed(0)}</span>
+          </div>
+        </header>
+        <div class="personality">${esc(c.personality || c.strategy_desc || "")}</div>
+        ${
+          fs
+            ? `<div class="flagship"><b>旗舰</b> ${esc(fs.name)} · H${fs.hidden_score}
+                · EVAL ${Number(fs.eval_avg || 0).toFixed(1)}
+                · ${fs.open_source ? "开源" : "闭源"}
+                ${fs.api_enabled !== false && fs.price_output != null ? " · $" + fs.price_output + "/M" : ""}
+              </div>`
+            : ""
+        }
+        <div class="tags">
+          <span class="tag">声誉 ${Number(c.public_rep || 0).toFixed(0)}</span>
+          <span class="tag">开源比 ${((c.open_ratio || 0) * 100).toFixed(0)}%</span>
+          <span class="tag">员工 ${c.employee_count ?? "—"}</span>
+          <span class="tag">模型 ${c.models_count ?? 0}</span>
+        </div>
+        <div class="tags mt">${topRes}</div>
+        <div class="actions">
+          <button class="btn sm" data-poach="${c.id}">挖角 (1.5×)</button>
+          <button class="btn sm" data-poach="${c.id}" data-mult="2.2">高价挖角 (2.2×)</button>
+        </div>
+      </div>`;
+    })
+    .join("") || empty("无对手数据");
+
+  $all("#market-comps [data-poach]").forEach((b) => {
+    b.onclick = async () => {
+      try {
+        const mult = Number(b.dataset.mult || 1.5);
+        applyAction(await api.poach(b.dataset.poach, mult));
+      } catch (e) {
+        toast(e.message, "err");
+      }
+    };
+  });
+
+  const models = ai.models || g.systems?.training?.competitor_models || [];
+  if ($("#rival-models")) {
+    $("#rival-models").innerHTML = models.length
+      ? models
+          .slice()
+          .sort((a, b) => (b.hidden_score || 0) - (a.hidden_score || 0))
+          .map(
+            (m) => `<div class="stack-item">
+            <div class="t">${esc(m.name)} <span class="badge">${esc(m.company || "")}</span></div>
+            <div class="s">H${m.hidden_score} · EVAL ${Number(m.eval_avg || 0).toFixed(1)}
+              · ${m.params_b}B · ${m.open_source ? "开源" : "闭源"}
+              ${m.api_enabled ? " · API $" + m.price_output + "/M" : ""}
+              · ${m.model_type || "text"}</div>
+          </div>`
+          )
+          .join("")
+      : empty("暂无竞品模型");
+  }
 }
 
 function renderEvents() {

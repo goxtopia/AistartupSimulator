@@ -590,6 +590,37 @@ select[multiple] { min-height: 110px; }
 .event-card p { color: var(--muted); margin: 0 0 0.9rem; }
 .event-card .choices { display: flex; flex-direction: column; gap: 0.45rem; }
 
+.rival-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+}
+.rival-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  border-left: 4px solid var(--rc, var(--accent));
+}
+.rival-card header {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+.rival-card .nm { font-weight: 700; font-size: 1.02rem; }
+.rival-card .personality { font-size: 0.82rem; color: var(--muted); margin: 0.35rem 0 0.55rem; min-height: 2.4em; }
+.rival-card .flagship {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.82rem;
+  margin-bottom: 0.5rem;
+}
+.rival-card .actions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.5rem; }
+.tier-titan { color: #fbbf24; }
+.tier-challenger { color: #38bdf8; }
+.tier-startup { color: #34d399; }
+
 /* modal */
 .modal {
   position: fixed; inset: 0;

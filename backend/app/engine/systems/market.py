@@ -1,4 +1,4 @@
-"""Market / API demand and competitor drift."""
+"""Market / API demand. Competitor AI lives in CompetitorsSystem."""
 
 from __future__ import annotations
 
@@ -11,11 +11,9 @@ class MarketSystem:
     name = "market"
 
     def on_new_game(self, state: dict[str, Any], ctx) -> None:
-        market_cfg = ctx.configs().load("market")
-        comps = []
-        for seed in market_cfg.get("competitors_seed", []):
-            comps.append({**seed, "models_count": 1, "last_release_day": 0})
-        state["competitors"] = comps
+        # Competitors are owned by CompetitorsSystem; only init market stats here.
+        # Keep empty list if competitors system not yet run (engine orders market after).
+        state.setdefault("competitors", [])
         state["market"] = {
             "daily_revenue": 0.0,
             "monthly_revenue": 0.0,
@@ -40,7 +38,6 @@ class MarketSystem:
         tendencies = state["company"].get("tendencies", {})
         mods = state.get("market", {}).get("demand_mods", {})
 
-        # Apply modifier hooks from events
         company_mods = state["company"].get("modifiers", {})
         for k, seg in (
             ("consumer_demand", "consumer"),
@@ -58,11 +55,11 @@ class MarketSystem:
 
         total_rev = 0.0
         segment_users: dict[str, float] = {}
+        rivals_by_id = {c["id"]: c for c in state.get("competitors", [])}
 
         for sid, seg in segments.items():
             country_bias = float(bias.get(sid, 1.0)) * market_size
             demand_mod = float(mods.get(sid, 1.0))
-            # distribute attraction across models (own only earns)
             attractions = []
             for m in own_models:
                 a = calc.segment_demand(
@@ -75,28 +72,22 @@ class MarketSystem:
                 )
                 attractions.append((m, a))
 
-            # competitor gravity reduces share
             comp_attr = 0.0
             for m in comp_models:
+                rival = rivals_by_id.get(m.get("company_id"), {})
                 comp_attr += calc.segment_demand(
                     segment={**seg, "id": sid},
                     model=m,
                     company_tendencies={
-                        "gov_relation": 30,
-                        "public_rep": float(
-                            next(
-                                (c.get("public_rep", 50) for c in state.get("competitors", []) if c["id"] == m.get("company_id")),
-                                50,
-                            )
-                        ),
+                        "gov_relation": float(rival.get("gov_relation", 30)),
+                        "public_rep": float(rival.get("public_rep", 50)),
                     },
-                    country_bias=country_bias * 0.8,
+                    country_bias=country_bias * 0.85,
                     best_eval_in_market=best_eval,
                     demand_mod=1.0,
                 )
 
             own_total = sum(a for _, a in attractions) + 1e-6
-            # share of market
             share = own_total / (own_total + comp_attr + 1e-6)
             seg_users = 0.0
             for m, a in attractions:
@@ -113,7 +104,6 @@ class MarketSystem:
         state["market"]["segment_users"] = segment_users
         state["company"]["capital"] = float(state["company"].get("capital", 0)) + total_rev
 
-        # monthly rollup log
         day = state.get("day", 0)
         if day > 0 and day % 30 < days:
             month_rev = state["market"]["daily_revenue"] * 30
@@ -123,64 +113,35 @@ class MarketSystem:
             )
             events.append({"type": "revenue", "msg": f"本月 API 收入约 ${month_rev:,.0f}", "amount": month_rev})
 
-        # competitor slow improvement
-        if day > 0 and day % 14 < days:
-            self._competitor_tick(state, ctx)
-
         return events
 
     def serialize_public(self, state: dict[str, Any], ctx) -> dict[str, Any]:
         market_cfg = ctx.configs().load("market")
+        # Prefer rich rival projection from competitors system if present in same serialize pass —
+        # engine serializes each system independently, so expose lightweight list here.
+        comps = state.get("competitors", [])
+        slim = []
+        for c in comps:
+            slim.append(
+                {
+                    "id": c.get("id"),
+                    "name": c.get("name"),
+                    "strategy": c.get("strategy") or c.get("strategy_legacy", "mixed"),
+                    "country": c.get("country"),
+                    "strength": c.get("strength"),
+                    "open_ratio": c.get("open_ratio"),
+                    "public_rep": c.get("public_rep"),
+                    "tier": c.get("tier"),
+                    "models_count": c.get("models_count"),
+                    "employee_count": len(c.get("employees", [])),
+                    "personality": c.get("personality", ""),
+                }
+            )
         return {
             "daily_revenue": state.get("market", {}).get("daily_revenue", 0),
             "monthly_revenue": state.get("market", {}).get("monthly_revenue", 0),
             "segment_users": state.get("market", {}).get("segment_users", {}),
             "segments": market_cfg.get("api_segments", {}),
-            "competitors": state.get("competitors", []),
+            "competitors": slim,
             "revenue_log": state.get("market", {}).get("revenue_log", [])[-12:],
         }
-
-    def _competitor_tick(self, state: dict, ctx) -> None:
-        rng = ctx.rng()
-        for c in state.get("competitors", []):
-            c["strength"] = calc.clamp(float(c.get("strength", 0.5)) + rng.uniform(0.0, 0.015), 0.3, 0.98)
-            # maybe release better model
-            if rng.random() < 0.25:
-                h = 40 + float(c["strength"]) * 65 + rng.uniform(-3, 8)
-                mid = f"comp_{c['id']}_{state.get('day', 0)}"
-                # replace main model
-                models = state.setdefault("competitor_models", [])
-                models = [m for m in models if m.get("company_id") != c["id"] or not str(m["id"]).endswith("_main")]
-                models.append(
-                    {
-                        "id": f"comp_{c['id']}_main",
-                        "name": f"{c['name']} v{1 + int(c.get('models_count', 1))}",
-                        "company_id": c["id"],
-                        "company": c["name"],
-                        "params_b": rng.choice([13, 70, 100, 180, 400]),
-                        "hidden_score": round(h, 1),
-                        "model_type": "text",
-                        "source": "closed_competitor" if c.get("strategy") != "open" else "open",
-                        "api_enabled": c.get("strategy") != "open" or rng.random() < 0.5,
-                        "open_source": c.get("strategy") == "open" or c.get("open_ratio", 0) > 0.5,
-                        "price_input": round(rng.uniform(0.5, 4.0), 2),
-                        "price_output": round(rng.uniform(1.5, 12.0), 2),
-                        "released": True,
-                        "eval_scores": {"average": round(h * 0.5 + rng.uniform(-4, 4), 1)},
-                    }
-                )
-                state["competitor_models"] = models
-                c["models_count"] = int(c.get("models_count", 1)) + 1
-                c["last_release_day"] = state.get("day", 0)
-                if models[-1].get("open_source"):
-                    state.setdefault("open_models", []).append(
-                        {
-                            "id": models[-1]["id"] + "_wt",
-                            "name": models[-1]["name"] + " (weights)",
-                            "company": c["name"],
-                            "hidden_score": models[-1]["hidden_score"],
-                            "params_b": models[-1]["params_b"],
-                            "model_type": "text",
-                            "source": "open",
-                        }
-                    )

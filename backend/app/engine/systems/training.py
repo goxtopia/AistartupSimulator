@@ -481,9 +481,8 @@ class TrainingSystem:
         return max(0.5, base * compute_mult * team_mult * busy_mult)
 
     def _seed_open_models(self, state: dict, ctx) -> None:
-        """Public open-weight models available for finetune."""
-        rng = ctx.rng()
-        opens = [
+        """Seed baseline open-weight models. Rival models come from CompetitorsSystem."""
+        baseline = [
             {"id": "open_herd_7b", "name": "OpenHerd-7B", "params_b": 7, "hidden_score": 48, "model_type": "text"},
             {"id": "open_herd_70b", "name": "OpenHerd-70B", "params_b": 70, "hidden_score": 72, "model_type": "text"},
             {"id": "mistral_wind_7b", "name": "Mistral Wind 7B", "params_b": 7, "hidden_score": 55, "model_type": "text"},
@@ -491,33 +490,15 @@ class TrainingSystem:
             {"id": "zhiju_13b", "name": "智算-13B", "params_b": 13, "hidden_score": 52, "model_type": "text"},
             {"id": "open_vision_3b", "name": "OpenVision-3B", "params_b": 3, "hidden_score": 45, "model_type": "multimodal"},
         ]
-        for m in opens:
+        for m in baseline:
             m["source"] = "open"
             m["api_enabled"] = False
             m["open_source"] = True
             m["price_output"] = 0
-        state["open_models"] = opens
-
-        # competitor closed models with API
-        comps = []
-        for c in state.get("competitors", []):
-            h = 40 + float(c.get("strength", 0.5)) * 60 + rng.uniform(-5, 5)
-            comps.append(
-                {
-                    "id": f"comp_{c['id']}_main",
-                    "name": f"{c['name']} Foundation",
-                    "company_id": c["id"],
-                    "company": c["name"],
-                    "params_b": rng.choice([70, 100, 180, 400]),
-                    "hidden_score": round(h, 1),
-                    "model_type": "text",
-                    "source": "closed_competitor",
-                    "api_enabled": True,
-                    "open_source": False,
-                    "price_input": round(rng.uniform(1.0, 5.0), 2),
-                    "price_output": round(rng.uniform(3.0, 15.0), 2),
-                    "released": True,
-                    "eval_scores": {"average": round(h * 0.5 + rng.uniform(-5, 5), 1)},
-                }
-            )
-        state["competitor_models"] = comps
+        # Merge with any open models already seeded by CompetitorsSystem
+        existing = {m["id"]: m for m in state.get("open_models", [])}
+        for m in baseline:
+            existing.setdefault(m["id"], m)
+        state["open_models"] = list(existing.values())
+        # Do NOT overwrite competitor_models — owned by CompetitorsSystem
+        state.setdefault("competitor_models", [])

@@ -14,6 +14,7 @@ from typing import Any
 from backend.app.core.config_loader import SAVES_DIR, get_configs
 from backend.app.engine.effects import DefaultEffectApplier
 from backend.app.engine.interfaces.base import IGameContext, SystemRegistry
+from backend.app.engine.systems.competitors import CompetitorsSystem
 from backend.app.engine.systems.compute import ComputeSystem
 from backend.app.engine.systems.events import EventSystem
 from backend.app.engine.systems.hr import HRSystem
@@ -67,9 +68,11 @@ class GameEngine:
         SAVES_DIR.mkdir(parents=True, exist_ok=True)
 
     def _register_systems(self) -> None:
-        # Order matters for ticks
+        # Order matters for ticks:
+        # competitors before market (models must exist); after HR helpers available at init
         for sys in (
             HRSystem(),
+            CompetitorsSystem(),
             ResearchSystem(),
             ComputeSystem(),
             TrainingSystem(),
@@ -150,14 +153,10 @@ class GameEngine:
             }
 
             ctx = GameContext(self)
-            # competitors needed before training seeds competitor models
-            # Initialize market first among systems that seed competitors
+            # Init order: HR first (person generator), then competitors, then the rest.
+            # Registration order already encodes this.
             for sys in self.systems.all():
-                if sys.name == "market":
-                    sys.on_new_game(state, ctx)
-            for sys in self.systems.all():
-                if sys.name != "market":
-                    sys.on_new_game(state, ctx)
+                sys.on_new_game(state, ctx)
 
             self.sessions[game_id] = state
             return self.public_state(game_id)
@@ -413,6 +412,18 @@ class GameEngine:
             "chips": self.configs.load("chips").get("chips", {}),
             "api_segments": self.configs.load("market").get("api_segments", {}),
             "eval_benchmarks": self.configs.load("market").get("eval_benchmarks", {}),
+            "competitor_strategies": self.configs.load("competitors").get("strategies", {}),
+            "rivals_seed": [
+                {
+                    "id": r["id"],
+                    "name": r["name"],
+                    "strategy": r.get("strategy"),
+                    "country": r.get("country"),
+                    "tier": r.get("tier"),
+                    "personality": r.get("personality", ""),
+                }
+                for r in self.configs.load("competitors").get("rivals", [])
+            ],
         }
 
     def append_log(self, message: str, category: str = "game", state: dict | None = None) -> None:

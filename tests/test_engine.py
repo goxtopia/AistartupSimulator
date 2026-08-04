@@ -134,10 +134,30 @@ def test_china_has_ascend():
     assert any("ascend" in i for i in ids)
 
 
+def test_ai_rivals_exist_and_act():
+    e, st = _new()
+    ai = st["systems"]["competitors"]
+    assert len(ai["rivals"]) >= 5
+    assert ai["rivals"][0].get("strategy_name")
+    assert ai["rivals"][0].get("flagship")
+    gid = st["game_id"]
+    # hire bait
+    for c in st["systems"]["hr"]["candidates"][:2]:
+        e.action(gid, "hire", {"candidate_id": c["id"]})
+    st2 = e.advance(gid, 40)
+    ai2 = st2["systems"]["competitors"]
+    assert len(ai2["models"]) >= len(ai["models"])
+    # player can attempt poach
+    target = ai2["rivals"][0]["id"]
+    r = e.action(gid, "poach", {"target_company_id": target, "offer_multiplier": 2.0})
+    assert "message" in r
+
+
 if __name__ == "__main__":
     test_new_game_capital_and_systems()
     test_hire_and_research_and_train()
     test_save_load()
     test_hidden_score_monotonic_capacity()
     test_china_has_ascend()
+    test_ai_rivals_exist_and_act()
     print("all passed")

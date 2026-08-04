@@ -8,7 +8,8 @@
 
 - **配置驱动**：国家、研究树、芯片、员工特质、市场分段、事件等均在 `data/configs/*.json`
 - **接口化引擎**：`IGameSystem` + `EffectApplier` + `ConfigRegistry`，系统内聚、可插拔
-- **核心系统**：HR / Research / Compute / Training / Market / Events
+- **核心系统**：HR / Research / Compute / Training / Market / Events / **Competitors AI**
+- **AI 对手**：9 家策略各异的实验室（闭源前沿、开源权重、安全优先、人才掠食者…），会自主研究、发模型，并从玩家处挖角
 - **Logo 设计器**：SVG 形状 + 图标 + 布局 + 配色叠加
 - **存档/读档**：JSON 存档于 `saves/`
 - **美术**：纯 SVG / 程序生成，无外部图片依赖
@@ -55,6 +56,7 @@ AistartupSimulator/
 | 新子系统 | 实现 `on_new_game` / `on_tick` / `serialize_public`，在 `GameEngine._register_systems` 注册 |
 | 新创始人背景 | `founder_backgrounds.json` 增加条目 |
 | 新隐藏标签 | `employees.json` → `hidden_tags` |
+| 新 AI 对手 / 策略 | `competitors.json` → `rivals` / `strategies` |
 
 ### 关键公式（摘要）
 
