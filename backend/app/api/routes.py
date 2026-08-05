@@ -9,22 +9,34 @@ from fastapi import APIRouter, HTTPException, Header
 from backend.app.engine.game import get_engine
 from backend.app.models.schemas import (
     AdvanceRequest,
+    AutoRlRequest,
+    AutoPriceRequest,
+    AutoHireRequest,
+    AutoResearchRequest,
+    AutoDistillRequest,
+    AssignDatasetRequest,
     AssignResearchRequest,
+    BorrowRequest,
     CreateDatasetRequest,
     DistillRequest,
     EventChoiceRequest,
     FireRequest,
     HireRequest,
+    ImproveModelRequest,
     LoadGameRequest,
     NewGameRequest,
     PoachRequest,
     PurchaseComputeRequest,
     ReleaseModelRequest,
+    RepayLoanRequest,
     SaveGameRequest,
     SetApiPriceRequest,
+    SetChiefScientistRequest,
+    SignContractRequest,
     StartResearchRequest,
     StartTrainingRequest,
     TrainSkillRequest,
+    UseFundingToolRequest,
 )
 
 router = APIRouter()
@@ -134,6 +146,19 @@ def hr_train(body: TrainSkillRequest, x_game_id: str | None = Header(default=Non
     return _act(_gid(x_game_id), "train_skill", body.model_dump())
 
 
+@router.post("/hr/chief-scientist")
+def hr_chief_scientist(
+    body: SetChiefScientistRequest,
+    x_game_id: str | None = Header(default=None, alias="X-Game-Id"),
+):
+    return _act(_gid(x_game_id), "set_chief_scientist", body.model_dump())
+
+
+@router.post("/hr/auto-hire")
+def hr_auto_hire(body: AutoHireRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
+    return _act(_gid(x_game_id), "set_auto_hire", body.model_dump())
+
+
 @router.post("/hr/poach")
 def hr_poach(body: PoachRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
     return _act(_gid(x_game_id), "poach", body.model_dump())
@@ -154,6 +179,11 @@ def research_pause(body: dict, x_game_id: str | None = Header(default=None, alia
     return _act(_gid(x_game_id), "pause_research", body)
 
 
+@router.post("/research/auto")
+def research_auto(body: AutoResearchRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
+    return _act(_gid(x_game_id), "set_research_auto", body.model_dump())
+
+
 @router.post("/compute/purchase")
 def compute_purchase(body: PurchaseComputeRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
     return _act(_gid(x_game_id), "purchase_compute", body.model_dump())
@@ -162,6 +192,11 @@ def compute_purchase(body: PurchaseComputeRequest, x_game_id: str | None = Heade
 @router.post("/training/dataset")
 def create_dataset(body: CreateDatasetRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
     return _act(_gid(x_game_id), "create_dataset", body.model_dump())
+
+
+@router.post("/training/dataset/assign")
+def assign_dataset(body: AssignDatasetRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
+    return _act(_gid(x_game_id), "assign_dataset", body.model_dump())
 
 
 @router.post("/training/start")
@@ -179,6 +214,21 @@ def distill(body: DistillRequest, x_game_id: str | None = Header(default=None, a
     return _act(_gid(x_game_id), "distill", body.model_dump())
 
 
+@router.post("/training/improve")
+def improve_model(body: ImproveModelRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
+    return _act(_gid(x_game_id), "improve_model", body.model_dump())
+
+
+@router.post("/training/auto-distill")
+def auto_distill(body: AutoDistillRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
+    return _act(_gid(x_game_id), "set_auto_distill", body.model_dump())
+
+
+@router.post("/training/auto-rl")
+def auto_rl(body: AutoRlRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
+    return _act(_gid(x_game_id), "set_auto_rl", body.model_dump())
+
+
 @router.post("/training/release")
 def release_model(body: ReleaseModelRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
     return _act(_gid(x_game_id), "release_model", body.model_dump())
@@ -187,6 +237,31 @@ def release_model(body: ReleaseModelRequest, x_game_id: str | None = Header(defa
 @router.post("/training/price")
 def set_price(body: SetApiPriceRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
     return _act(_gid(x_game_id), "set_api_price", body.model_dump())
+
+
+@router.post("/training/auto-price")
+def auto_price(body: AutoPriceRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
+    return _act(_gid(x_game_id), "set_auto_price", body.model_dump())
+
+
+@router.post("/market/contracts/sign")
+def sign_contract(body: SignContractRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
+    return _act(_gid(x_game_id), "sign_contract", body.model_dump())
+
+
+@router.post("/finance/borrow")
+def borrow(body: BorrowRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
+    return _act(_gid(x_game_id), "borrow", body.model_dump())
+
+
+@router.post("/finance/repay")
+def repay_loan(body: RepayLoanRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
+    return _act(_gid(x_game_id), "repay_loan_early", body.model_dump())
+
+
+@router.post("/finance/tools/use")
+def use_funding_tool(body: UseFundingToolRequest, x_game_id: str | None = Header(default=None, alias="X-Game-Id")):
+    return _act(_gid(x_game_id), "use_funding_tool", body.model_dump())
 
 
 @router.post("/events/choose")

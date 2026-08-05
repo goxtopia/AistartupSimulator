@@ -10,6 +10,9 @@
       "novelty_bias": 0.3,
       "prefers_best": false,
       "gov_relation_factor": 0.0,
+      "active_rate": 0.012,
+      "daily_tokens_m": 0.018,
+      "output_token_share": 0.65,
       "description": "数量多，需求低，付费意愿系数低，与模型质量成正比"
     },
     "code": {
@@ -22,6 +25,9 @@
       "novelty_bias": 0.4,
       "prefers_best": true,
       "gov_relation_factor": 0.0,
+      "active_rate": 0.018,
+      "daily_tokens_m": 0.12,
+      "output_token_share": 0.72,
       "eval_focus": ["coding", "reasoning"],
       "description": "数量中，消费意愿高，更倾向于最强模型"
     },
@@ -35,6 +41,9 @@
       "novelty_bias": 1.5,
       "prefers_best": false,
       "gov_relation_factor": 0.0,
+      "active_rate": 0.014,
+      "daily_tokens_m": 0.08,
+      "output_token_share": 0.7,
       "description": "付费意愿高，更愿意尝试新模型"
     },
     "enterprise_gov": {
@@ -47,9 +56,20 @@
       "novelty_bias": 0.2,
       "prefers_best": false,
       "gov_relation_factor": 1.5,
+      "active_rate": 0.025,
+      "daily_tokens_m": 0.75,
+      "output_token_share": 0.58,
       "eval_focus": ["safety", "reasoning"],
       "description": "付费意愿极高，额外受政府关系影响"
     }
+  },
+  "api_economy": {
+    "base_revenue_multiplier": 2.5,
+    "growth_days": 180,
+    "growth_power": 2.0,
+    "frontier_adoption_scale": 1.6,
+    "min_market_multiplier": 0.65,
+    "max_market_multiplier": 80.0
   },
   "eval_benchmarks": {
     "mmlu": { "id": "mmlu", "name": "MMLU", "weight": 1.0, "noise": 0.05, "bias_from": ["performance", "capacity"] },
@@ -75,6 +95,71 @@
     "open_source_price_lock_range": 1.0,
     "min_price": 0.05,
     "max_price": 100.0
+  },
+  "procurement_contracts": {
+    "nebula_retail": {
+      "id": "nebula_retail",
+      "buyer": "星云零售集团",
+      "buyer_type": "enterprise",
+      "description": "客服、商品理解与内部知识库模型采购。重视稳定的综合能力。",
+      "duration_options": [
+        { "years": 2, "monthly_revenue": 90000 },
+        { "years": 5, "monthly_revenue": 76000 }
+      ],
+      "requirements": {
+        "model_types": ["text", "multimodal"],
+        "min_eval": 52,
+        "min_hidden": 50
+      }
+    },
+    "meridian_finance": {
+      "id": "meridian_finance",
+      "buyer": "子午金融联盟",
+      "buyer_type": "enterprise",
+      "description": "金融分析与合规助手采购，要求更高的推理和安全基准。",
+      "duration_options": [
+        { "years": 2, "monthly_revenue": 175000 },
+        { "years": 5, "monthly_revenue": 148000 }
+      ],
+      "requirements": {
+        "model_types": ["text", "multimodal"],
+        "min_eval": 62,
+        "min_safety": 55,
+        "min_hidden": 70
+      }
+    },
+    "public_digital_service": {
+      "id": "public_digital_service",
+      "buyer": "国家数字服务局",
+      "buyer_type": "government",
+      "description": "政务知识、公共服务与安全审查模型采购。合同稳定，但门槛最高。",
+      "duration_options": [
+        { "years": 2, "monthly_revenue": 310000 },
+        { "years": 5, "monthly_revenue": 265000 }
+      ],
+      "requirements": {
+        "model_types": ["text", "multimodal", "anytoany"],
+        "min_eval": 70,
+        "min_safety": 66,
+        "min_hidden": 88,
+        "min_gov_relation": 52
+      }
+    },
+    "horizon_research_cloud": {
+      "id": "horizon_research_cloud",
+      "buyer": "地平线科研云",
+      "buyer_type": "enterprise",
+      "description": "面向高校与实验室的多模态科研平台，只采购具备视觉能力的模型。",
+      "duration_options": [
+        { "years": 2, "monthly_revenue": 135000 },
+        { "years": 5, "monthly_revenue": 114000 }
+      ],
+      "requirements": {
+        "model_types": ["multimodal", "anytoany"],
+        "min_eval": 58,
+        "min_hidden": 62
+      }
+    }
   },
   "competitors_seed": [
     {

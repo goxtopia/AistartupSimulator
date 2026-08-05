@@ -102,21 +102,28 @@ class DefaultEffectApplier(EffectApplier):
             return ""
 
         def risk_employee_leave(state: dict, value: Any, ctx: IGameContext) -> str:
-            emps = state.get("employees", [])
+            chief_id = state.get("hr", {}).get("chief_scientist_id")
+            emps = [
+                employee
+                for employee in state.get("employees", [])
+                if employee.get("id") != chief_id
+            ]
             if not emps:
                 return "没有可离职的员工"
             rng = ctx.rng()
             if rng.random() < float(value):
                 emp = rng.choice(emps)
-                emps.remove(emp)
-                state.setdefault("log", []).append(
-                    {
-                        "day": state.get("day", 0),
-                        "msg": f"{emp.get('name')} 被挖走了",
-                        "cat": "hr",
-                    }
-                )
-                return f"{emp.get('name')} 离职"
+                hr = ctx.get_system("hr")
+                if hr and hasattr(hr, "voluntary_leave"):
+                    _ok, msg, _departed = hr.voluntary_leave(
+                        state,
+                        emp["id"],
+                        reason="接受外部机会后主动离职",
+                    )
+                    return msg
+                # Compatibility fallback also intentionally has no financial effect.
+                state.get("employees", []).remove(emp)
+                return f"{emp.get('name')} 主动离职（不支付离职补偿）"
             return "员工选择留下"
 
         self.register("morale_all", morale_all)

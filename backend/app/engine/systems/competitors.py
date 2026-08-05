@@ -20,6 +20,18 @@ class CompetitorsSystem:
 
     name = "competitors"
 
+    BUSINESS_MODELS = {
+        "closed_frontier": {"id": "premium_api", "name": "高价前沿 API", "contract": 0.35, "ecosystem": 0.05, "government": 0.1, "margin": 0.7},
+        "safety_first": {"id": "enterprise_safety", "name": "安全政企订阅", "contract": 1.35, "ecosystem": 0.08, "government": 0.8, "margin": 0.74},
+        "open_weights": {"id": "open_ecosystem", "name": "开源生态与授权", "contract": 0.25, "ecosystem": 1.55, "government": 0.05, "margin": 0.48},
+        "mixed_platform": {"id": "platform", "name": "平台 API + 企业套件", "contract": 0.75, "ecosystem": 0.65, "government": 0.25, "margin": 0.66},
+        "efficient_open": {"id": "efficient_api", "name": "低价高吞吐 API", "contract": 0.3, "ecosystem": 0.8, "government": 0.1, "margin": 0.58},
+        "domestic_scale": {"id": "domestic_enterprise", "name": "本地政企规模采购", "contract": 1.15, "ecosystem": 0.2, "government": 0.85, "margin": 0.68},
+        "creative_open": {"id": "consumer_ecosystem", "name": "消费 API + 社区生态", "contract": 0.2, "ecosystem": 1.05, "government": 0.0, "margin": 0.5},
+        "sovereign_compute": {"id": "sovereign_contracts", "name": "主权采购与算力服务", "contract": 0.7, "ecosystem": 0.25, "government": 1.6, "margin": 0.62},
+        "talent_raider": {"id": "venture_growth", "name": "融资驱动的高价 API", "contract": 0.2, "ecosystem": 0.05, "government": 0.0, "margin": 0.64},
+    }
+
     def on_new_game(self, state: dict[str, Any], ctx) -> None:
         cfg = ctx.configs().load("competitors")
         strategies = cfg.get("strategies", {})
@@ -33,7 +45,7 @@ class CompetitorsSystem:
             rival = self._init_rival(seed, strat, ctx)
             rivals_out.append(rival)
             # seed a flagship model so market isn't empty
-            model = self._build_model(rival, strat, ctx, version=1, force_open=None, day=0)
+            model = self._build_model(rival, strat, ctx, state=state, version=1, force_open=None, day=0)
             competitor_models.append(model)
             if model.get("open_source"):
                 open_extra.append(self._to_open_entry(model, rival))
@@ -52,6 +64,10 @@ class CompetitorsSystem:
             "action_log": [],
             "last_poach_day": -999,
             "threat_index": 0.0,
+            "bankruptcies": [],
+            "entrant_count": 0,
+            "next_entrant_day": ctx.rng().randint(95, 145),
+            "last_player_distill_day": -999,
         }
 
     def on_tick(self, state: dict[str, Any], ctx, days: int = 1) -> list[dict]:
@@ -71,15 +87,20 @@ class CompetitorsSystem:
             # Engine always passes days=1 in advance loop.
             break
 
-        rivals = state.get("competitors", [])
-        if not rivals:
-            return events
+        ai_state = state.setdefault("competitor_ai", {})
+        ai_state.setdefault("bankruptcies", [])
+        ai_state.setdefault("entrant_count", 0)
+        ai_state.setdefault("next_entrant_day", day + 90)
+        ai_state.setdefault("last_player_distill_day", -999)
+        rivals = [r for r in state.get("competitors", []) if not r.get("bankrupt")]
 
         # Research progress every N days
         research_every = int(tick_cfg.get("research_check_every", 3))
         hire_every = int(tick_cfg.get("hire_check_every", 5))
         poach_every = int(tick_cfg.get("poach_check_every", 4))
         release_every = int(tick_cfg.get("release_check_every", 2))
+        pricing_every = int(tick_cfg.get("pricing_check_every", 7))
+        distill_every = int(tick_cfg.get("distill_check_every", 11))
 
         if day > 0 and day % research_every == 0:
             for rival in rivals:
@@ -102,6 +123,16 @@ class CompetitorsSystem:
                 if msg:
                     events.append(msg)
                     self._log_action(state, day, msg.get("msg", ""), rival["id"])
+
+        if day > 0 and day % pricing_every == 0:
+            for rival in rivals:
+                self._tick_pricing(rival, strategies.get(rival.get("strategy"), {}), state, ctx)
+
+        if day > 0 and day % distill_every == 0:
+            msg = self._try_distill_player_model(rivals, strategies, state, ctx)
+            if msg:
+                events.append(msg)
+                self._log_action(state, day, msg.get("msg", ""), msg.get("rival_id", ""))
 
         # Poaching — limited global attempts so player isn't drained every tick
         if day > 0 and day % poach_every == 0:
@@ -145,6 +176,11 @@ class CompetitorsSystem:
             strat = strategies.get(rival.get("strategy"), {})
             self._tick_economy(rival, strat, state, ctx, days)
 
+        events.extend(self._handle_bankruptcies(state, ctx))
+        entrant = self._maybe_new_entrant(state, ctx)
+        if entrant:
+            events.append(entrant)
+
         # Threat index for UI
         player_best = max(
             (float(m.get("hidden_score", 0)) for m in state.get("models", []) if m.get("released")),
@@ -166,6 +202,7 @@ class CompetitorsSystem:
         public_rivals = []
         for r in state.get("competitors", []):
             strat = strategies.get(r.get("strategy"), {})
+            business = self._business_profile(r.get("strategy"), strat)
             models = [
                 m
                 for m in state.get("competitor_models", [])
@@ -179,6 +216,8 @@ class CompetitorsSystem:
                     "strategy": r.get("strategy"),
                     "strategy_name": strat.get("name", r.get("strategy")),
                     "strategy_desc": strat.get("description", ""),
+                    "business_model": business["id"],
+                    "business_model_name": business["name"],
                     "color": strat.get("color", "#38bdf8"),
                     "tier": r.get("tier", "challenger"),
                     "strength": round(float(r.get("strength", 0.5)), 3),
@@ -186,6 +225,14 @@ class CompetitorsSystem:
                     "gov_relation": round(float(r.get("gov_relation", 20)), 1),
                     "open_ratio": round(float(r.get("open_ratio", 0.3)), 2),
                     "capital": round(float(r.get("capital", 0)), 0),
+                    "daily_revenue": round(float(r.get("daily_revenue", 0)), 2),
+                    "daily_cost": round(float(r.get("daily_cost", 0)), 2),
+                    "daily_profit": round(float(r.get("daily_profit", 0)), 2),
+                    "api_daily_revenue": round(float(r.get("api_daily_revenue", 0)), 2),
+                    "api_daily_users": round(float(r.get("api_daily_users", 0)), 1),
+                    "revenue_breakdown": dict(r.get("revenue_breakdown") or {}),
+                    "runway_days": r.get("runway_days"),
+                    "financial_status": r.get("financial_status", "healthy"),
                     "employee_count": len(r.get("employees", [])),
                     "models_count": int(r.get("models_count", 0)),
                     "last_release_day": r.get("last_release_day", 0),
@@ -193,6 +240,7 @@ class CompetitorsSystem:
                     "focus": list((r.get("research_levels") or {}).keys())[:5],
                     "top_research": self._top_research(r),
                     "flagship": self._flagship_public(models),
+                    "top_models": self._top_models_public(models),
                     "recent_actions": list(r.get("recent_actions", []))[-5:],
                     "poach_cooldown": int(r.get("poach_cooldown", 0)),
                     # legacy aliases used by older UI
@@ -205,6 +253,8 @@ class CompetitorsSystem:
             # backward compatible list for HR poach buttons / market tab
             "competitors": public_rivals,
             "action_log": list(state.get("competitor_ai", {}).get("action_log", []))[-20:],
+            "bankruptcies": list(state.get("competitor_ai", {}).get("bankruptcies", []))[-12:],
+            "next_entrant_day": state.get("competitor_ai", {}).get("next_entrant_day"),
             "threat_index": state.get("competitor_ai", {}).get("threat_index", 0),
             "strategies": {
                 k: {"id": k, "name": v.get("name"), "description": v.get("description"), "color": v.get("color")}
@@ -219,10 +269,16 @@ class CompetitorsSystem:
                     "hidden_score": m.get("hidden_score"),
                     "eval_avg": (m.get("eval_scores") or {}).get("average"),
                     "params_b": m.get("params_b"),
+                    "parameter_scale_factor": round(calc.parameter_scaling_factor(float(m.get("params_b", 7))), 3),
                     "open_source": m.get("open_source"),
                     "api_enabled": m.get("api_enabled"),
+                    "price_input": m.get("price_input"),
                     "price_output": m.get("price_output"),
+                    "daily_users": m.get("daily_users", 0),
+                    "daily_revenue": m.get("daily_revenue", 0),
                     "model_type": m.get("model_type"),
+                    "distilled_from_player": bool(m.get("distilled_from_player")),
+                    "teacher_model_name": m.get("teacher_model_name"),
                 }
                 for m in state.get("competitor_models", [])
                 if m.get("released")
@@ -279,11 +335,14 @@ class CompetitorsSystem:
             employees.append(p)
 
         open_ratio = float(strat.get("open_bias", 0.3))
+        business = self._business_profile(seed.get("strategy"), strat)
         return {
             "id": seed["id"],
             "name": seed["name"],
             "country": seed.get("country", "usa"),
             "strategy": seed.get("strategy"),
+            "business_model": business["id"],
+            "business_model_name": business["name"],
             "tier": seed.get("tier", "challenger"),
             "strength": strength,
             "capital": float(seed.get("starting_capital", 10_000_000)),
@@ -298,6 +357,11 @@ class CompetitorsSystem:
             "poach_cooldown": rng.randint(12, 24),
             "personality": seed.get("personality", ""),
             "recent_actions": [],
+            "daily_revenue": 0.0,
+            "daily_cost": 0.0,
+            "daily_profit": 0.0,
+            "revenue_breakdown": {},
+            "financial_status": "healthy",
             "focus": list(weights.keys())[:4],
             # legacy field used by old market code
             "strategy_legacy": "open" if open_ratio > 0.7 else ("closed" if open_ratio < 0.2 else "mixed"),
@@ -315,11 +379,12 @@ class CompetitorsSystem:
         w = [float(weights[i]) for i in ids]
         pick = rng.choices(ids, weights=w, k=1)[0]
         cur = int(levels.get(pick, 0))
+        max_level = self._research_max_level(ctx, pick)
         # team power
         team = len(rival.get("employees", []))
         chance = 0.35 * pace * (0.7 + min(team, 20) * 0.03) * (0.8 + float(rival.get("strength", 0.5)))
         msgs = []
-        if rng.random() < chance and cur < 18:
+        if rng.random() < chance and cur < max_level:
             cost = 40000 * (1.35 ** cur)
             if rival["capital"] >= cost:
                 rival["capital"] -= cost
@@ -377,8 +442,14 @@ class CompetitorsSystem:
         rival["next_release_day"] = day + rng.randint(int(lo), int(hi))
 
         model = self._build_model(
-            rival, strat, ctx, version=int(rival.get("models_count", 1)) + 1, day=day
+            rival, strat, ctx, state=state, version=int(rival.get("models_count", 1)) + 1, day=day
         )
+        training_cost = float(model.get("training_upfront_cost", 0))
+        if float(rival.get("capital", 0)) < training_cost:
+            rival["next_release_day"] = day + rng.randint(7, 16)
+            rival["financial_status"] = "distressed"
+            return None
+        rival["capital"] -= training_cost
         model["released_day"] = day
         # replace previous main + keep history lightly
         models = state.setdefault("competitor_models", [])
@@ -388,13 +459,13 @@ class CompetitorsSystem:
                 m["is_flagship"] = False
         model["is_flagship"] = True
         models.append(model)
-        # prune very old models per company (keep last 4)
+        # prune very old models per company (keep enough for the company Top 5)
         kept = []
         per: dict[str, int] = {}
         for m in reversed(models):
             cid = m.get("company_id", "")
             per[cid] = per.get(cid, 0) + 1
-            if per[cid] <= 4:
+            if per[cid] <= 5:
                 kept.append(m)
         state["competitor_models"] = list(reversed(kept))
 
@@ -432,12 +503,18 @@ class CompetitorsSystem:
             return None
         if int(rival.get("poach_cooldown", 0)) > 0:
             return None
-        # Global spacing: at most one successful industry raid every 10 days
+        tick_cfg = ctx.configs().load("competitors").get("ai_tick", {})
+        # Global spacing keeps successful raids rare enough to recover from.
         last_global = int(state.get("competitor_ai", {}).get("last_poach_day", -999))
-        if day - last_global < 10:
+        if day - last_global < int(tick_cfg.get("poach_global_spacing_days", 18)):
             return None
 
-        emps = list(state.get("employees", []))
+        chief_id = state.get("hr", {}).get("chief_scientist_id")
+        emps = [
+            employee
+            for employee in state.get("employees", [])
+            if employee.get("id") != chief_id
+        ]
         if not emps:
             return None
 
@@ -449,7 +526,7 @@ class CompetitorsSystem:
         )
         # Notice the player once they have staff / models / some rep
         visibility = min(0.4, len(emps) * 0.03) + min(0.25, player_best / 180) + min(0.15, player_rep / 250)
-        interest = aggression * (0.08 + visibility) * 0.65
+        interest = aggression * (0.08 + visibility) * float(tick_cfg.get("poach_interest_multiplier", 0.58))
         if rng.random() > interest:
             rival["poach_cooldown"] = rng.randint(5, 12)
             return None
@@ -501,7 +578,20 @@ class CompetitorsSystem:
         offer_salary = float(target.get("salary", 15000)) * offer_mult
         signing = offer_salary * rng.uniform(1.0, 2.5)
         cost = offer_salary * 2 + signing
-        if rival["capital"] < cost:
+        seniority_mult = {
+            "junior": 0.75,
+            "mid": 1.0,
+            "senior": 1.25,
+            "staff": 1.6,
+            "principal": 2.0,
+        }.get(target.get("seniority"), 1.0)
+        breach_fee = round(
+            float(target.get("salary", 15000))
+            * float(tick_cfg.get("poach_breach_months", 4))
+            * seniority_mult,
+            0,
+        )
+        if rival["capital"] < cost + breach_fee:
             return None
 
         # success probability — keep threatening but not company-ending
@@ -525,7 +615,8 @@ class CompetitorsSystem:
         if "prima_donna" in tags:
             base_p += 0.04 * (offer_mult - 1)
 
-        success = rng.random() < calc.clamp(base_p, 0.015, 0.32)
+        base_p *= float(tick_cfg.get("poach_success_multiplier", 0.55))
+        success = rng.random() < calc.clamp(base_p, 0.008, float(tick_cfg.get("poach_success_cap", 0.18)))
         rival["capital"] -= cost * (0.15 if not success else 1.0)
         rival["poach_cooldown"] = rng.randint(18, 36)
 
@@ -553,13 +644,18 @@ class CompetitorsSystem:
         target["from_company"] = state["company"]["name"]
         rival.setdefault("employees", []).append(target)
 
+        # The hiring rival pays the player's company a contractual breach fee.
+        rival["capital"] = float(rival.get("capital", 0)) - breach_fee
+        state["company"]["capital"] = float(state["company"].get("capital", 0)) + breach_fee
+
         # player morale shock
         for e in state.get("employees", []):
             e["morale"] = calc.clamp(float(e.get("morale", 70)) - rng.uniform(2, 6))
 
         msg = (
             f"⚠ {rival['name']} 挖走了 {target['name']}！"
-            f"（{target.get('role_name', target.get('role', ''))} · 报价 {offer_mult:.1f}× 薪资）"
+            f"（{target.get('role_name', target.get('role', ''))} · 报价 {offer_mult:.1f}× 薪资；"
+            f"收到违约金 ${breach_fee:,.0f}）"
         )
         state.setdefault("log", []).append({"day": day, "msg": msg, "cat": "poach"})
         rival.setdefault("recent_actions", []).append({"day": day, "msg": msg})
@@ -574,24 +670,76 @@ class CompetitorsSystem:
             "rival_id": rival["id"],
             "employee_id": target["id"],
             "employee_name": target["name"],
+            "breach_fee": breach_fee,
         }
 
     def _tick_economy(self, rival: dict, strat: dict, state: dict, ctx, days: int) -> None:
         rng = ctx.rng()
-        growth = float(strat.get("capital_growth", 1.0))
-        # API income from flagship
-        models = [m for m in state.get("competitor_models", []) if m.get("company_id") == rival["id"] and m.get("api_enabled")]
-        daily = 0.0
-        for m in models:
-            h = float(m.get("hidden_score", 40))
-            price = float(m.get("price_output", 5))
-            daily += (h ** 1.2) * price * 15 * (0.6 + float(rival.get("public_rep", 50)) / 100)
-        # scale by tier
+        business = self._business_profile(rival.get("strategy"), strat)
+        models = [
+            model
+            for model in state.get("competitor_models", [])
+            if model.get("company_id") == rival["id"] and model.get("api_enabled")
+        ]
+        best_hidden = max((float(model.get("hidden_score", 0)) for model in models), default=35.0)
+        api_income = float(rival.get("api_daily_revenue", 0))
+        rep = float(rival.get("public_rep", 50))
+        gov = float(rival.get("gov_relation", 20))
         tier_mult = {"titan": 1.4, "challenger": 1.0, "startup": 0.7}.get(rival.get("tier"), 1.0)
-        income = daily * tier_mult * growth * days
-        # payroll
-        payroll = sum(float(e.get("salary", 0)) for e in rival.get("employees", [])) / 30.0 * days
-        rival["capital"] = float(rival["capital"]) + income - payroll
+        maturity = 0.7 + min(2.5, int(state.get("day", 0)) / 365.0)
+        contract_income = (
+            (best_hidden ** 1.18)
+            * (20.0 + rep * 0.32)
+            * float(business.get("contract", 0))
+            * tier_mult
+            * maturity
+        )
+        ecosystem_income = (
+            (max(10.0, rep) ** 1.28)
+            * 18.0
+            * float(business.get("ecosystem", 0))
+            * (0.65 + float(rival.get("open_ratio", 0.3)))
+            * maturity
+        )
+        government_income = (
+            (max(5.0, gov) ** 1.3)
+            * 15.0
+            * float(business.get("government", 0))
+            * tier_mult
+            * maturity
+        )
+        gross_daily = api_income + contract_income + ecosystem_income + government_income
+        payroll_daily = sum(float(e.get("salary", 0)) for e in rival.get("employees", [])) / 30.0
+        serving_daily = api_income * max(0.08, 1.0 - float(business.get("margin", 0.62)))
+        compute_daily = (best_hidden ** 1.16) * 22.0 * tier_mult
+        operating_daily = 2_000.0 * tier_mult + len(models) * 450.0
+        total_cost_daily = payroll_daily + serving_daily + compute_daily + operating_daily
+        net_daily = gross_daily - total_cost_daily
+        rival["capital"] = float(rival["capital"]) + net_daily * days
+        rival["daily_revenue"] = round(gross_daily, 2)
+        rival["daily_cost"] = round(total_cost_daily, 2)
+        rival["daily_profit"] = round(net_daily, 2)
+        rival["revenue_breakdown"] = {
+            "api": round(api_income, 2),
+            "contracts": round(contract_income, 2),
+            "ecosystem": round(ecosystem_income, 2),
+            "government": round(government_income, 2),
+        }
+        burn = max(0.0, -net_daily)
+        rival["runway_days"] = round(max(0.0, float(rival["capital"])) / burn, 0) if burn > 1 else None
+        if float(rival["capital"]) < 0:
+            rival["financial_status"] = "insolvent"
+        elif burn > 0 and float(rival["capital"]) / burn < 90:
+            rival["financial_status"] = "distressed"
+        else:
+            rival["financial_status"] = "healthy"
+        # Rare shocks make otherwise viable strategies genuinely fallible.
+        if rng.random() < 0.0015 * days:
+            shock = min(float(rival["capital"]) * rng.uniform(0.08, 0.22), 6_000_000.0)
+            rival["capital"] -= max(0.0, shock)
+            rival.setdefault("recent_actions", []).append(
+                {"day": state.get("day", 0), "msg": f"遭遇商业事故，损失 ${shock:,.0f}"}
+            )
         # strength slow climb + noise
         rival["strength"] = calc.clamp(
             float(rival["strength"]) + rng.uniform(-0.002, 0.006) * days * float(strat.get("research_pace", 1)),
@@ -601,6 +749,246 @@ class CompetitorsSystem:
         if rival.get("poach_cooldown", 0) > 0:
             rival["poach_cooldown"] = max(0, int(rival["poach_cooldown"]) - days)
 
+    def _tick_pricing(self, rival: dict, strat: dict, state: dict, ctx) -> None:
+        market_total = float(state.get("market", {}).get("total_api_market_daily_revenue", 0))
+        share = float(rival.get("api_daily_revenue", 0)) / max(market_total, 1.0)
+        distress = rival.get("financial_status") in {"distressed", "insolvent"}
+        for model in state.get("competitor_models", []):
+            if model.get("company_id") != rival["id"] or not model.get("api_enabled"):
+                continue
+            hidden = float(model.get("hidden_score", 40))
+            target = (2.2 + hidden / 22.0) * float(strat.get("price_mult", 1.0))
+            if model.get("open_source"):
+                target *= 0.6
+            if share < 0.025:
+                target *= 0.86
+            elif share > 0.16:
+                target *= 1.06
+            if distress:
+                target *= 0.82
+            old = float(model.get("price_output", target))
+            price_out = calc.clamp(old * 0.72 + target * 0.28, 0.08, 100.0)
+            model["price_output"] = round(price_out, 2)
+            model["price_input"] = round(price_out * (0.28 if model.get("open_source") else 0.36), 2)
+
+    def _try_distill_player_model(
+        self,
+        rivals: list[dict],
+        strategies: dict[str, dict],
+        state: dict,
+        ctx,
+    ) -> dict | None:
+        day = int(state.get("day", 0))
+        ai_state = state.setdefault("competitor_ai", {})
+        if day < 35 or day - int(ai_state.get("last_player_distill_day", -999)) < 24:
+            return None
+        rng = ctx.rng()
+        player_models = [
+            model
+            for model in state.get("models", [])
+            if model.get("released") and (model.get("open_source") or model.get("api_enabled"))
+        ]
+        if not player_models or not rivals or rng.random() > 0.42:
+            return None
+        teacher = max(
+            player_models,
+            key=lambda model: float(model.get("hidden_score", 0))
+            * (1.12 if model.get("open_source") else 1.0),
+        )
+        eligible = []
+        for rival in rivals:
+            if rival.get("financial_status") == "insolvent":
+                continue
+            same_type = [
+                model
+                for model in state.get("competitor_models", [])
+                if model.get("company_id") == rival["id"]
+                and model.get("model_type", "text") == teacher.get("model_type", "text")
+            ]
+            own_best = max((float(model.get("hidden_score", 0)) for model in same_type), default=0.0)
+            if float(teacher.get("hidden_score", 0)) >= own_best * 0.82:
+                eligible.append((rival, own_best))
+        if not eligible:
+            return None
+        rival, own_best = rng.choice(eligible)
+        strat = strategies.get(rival.get("strategy"), {})
+        sampling_cost = (
+            float(teacher.get("params_b", 7)) * 8_000
+            if teacher.get("open_source")
+            else float(teacher.get("hidden_score", 50)) * 14_000
+        )
+        version = int(rival.get("models_count", 1)) + 1
+        model = self._build_model(rival, strat, ctx, state=state, version=version, day=day)
+        teacher_hidden = float(teacher.get("hidden_score", 0))
+        if teacher_hidden > own_best:
+            transferred = own_best + max(0.8, (teacher_hidden - own_best) * rng.uniform(0.22, 0.36))
+            model["hidden_score"] = round(min(teacher_hidden * 0.93, max(transferred, float(model["hidden_score"]))), 2)
+        model["model_type"] = teacher.get("model_type", "text")
+        model["params_b"] = max(1.0, min(float(teacher.get("params_b", 7)), float(model.get("params_b", 7))))
+        presets = ctx.configs().load("model_types").get("param_presets", [])
+        parameter_units = calc.parameter_compute_units(float(model["params_b"]), presets)
+        type_cfg = ctx.configs().load("model_types").get("model_types", {}).get(model["model_type"], {})
+        model["parameter_compute_units"] = round(parameter_units, 2)
+        model["parameter_scale_factor"] = round(calc.parameter_scaling_factor(float(model["params_b"])), 3)
+        model["training_upfront_cost"] = round(
+            8000 + parameter_units * 250 * float(type_cfg.get("difficulty", 1.0)),
+            2,
+        )
+        total_training_cost = sampling_cost + float(model["training_upfront_cost"])
+        if float(rival.get("capital", 0)) < total_training_cost:
+            return None
+        rival["capital"] -= total_training_cost
+        teacher_evals = teacher.get("eval_scores") or {}
+        model_evals = model.get("eval_scores") or {}
+        for key in set(teacher_evals) | set(model_evals):
+            if key == "average":
+                continue
+            tv = teacher_evals.get(key)
+            mv = model_evals.get(key)
+            if isinstance(tv, (int, float)):
+                base = float(mv) if isinstance(mv, (int, float)) else float(tv) * 0.7
+                model_evals[key] = round(calc.clamp(float(tv) * 0.76 + base * 0.24 - rng.uniform(1.0, 4.5), 0, 100), 2)
+        market_system = ctx.get_system("market")
+        benchmarks = market_system.benchmarks_for_state(state, ctx) if market_system else {}
+        model_evals["average"] = calc.weighted_eval_average(model_evals, benchmarks)
+        model["eval_scores"] = model_evals
+        model["name"] = f"{rival['name']} Echo-{version}"
+        model["distilled_from_player"] = True
+        model["teacher_model_id"] = teacher["id"]
+        model["teacher_model_name"] = teacher.get("name")
+        model["teacher_company"] = state.get("company", {}).get("name")
+        model["released_day"] = day
+        model["is_flagship"] = float(model.get("hidden_score", 0)) >= own_best
+        if model["is_flagship"]:
+            for existing in state.get("competitor_models", []):
+                if existing.get("company_id") == rival["id"]:
+                    existing["is_flagship"] = False
+        state.setdefault("competitor_models", []).append(model)
+        rival["models_count"] = version
+        rival["last_release_day"] = day
+        if model.get("open_source"):
+            state.setdefault("open_models", []).append(self._to_open_entry(model, rival))
+        self._prune_models(state)
+        ai_state["last_player_distill_day"] = day
+        access = "开源权重" if teacher.get("open_source") else "API 输出采样"
+        msg = (
+            f"⚠ {rival['name']} 通过{access}蒸馏了你的 {teacher.get('name')}，"
+            f"发布 {model['name']}（H{model['hidden_score']}）"
+        )
+        rival.setdefault("recent_actions", []).append({"day": day, "msg": msg})
+        state.setdefault("log", []).append({"day": day, "msg": msg, "cat": "rival"})
+        return {
+            "type": "player_model_distilled",
+            "msg": msg,
+            "rival_id": rival["id"],
+            "model_id": model["id"],
+            "teacher_model_id": teacher["id"],
+        }
+
+    def _handle_bankruptcies(self, state: dict, ctx) -> list[dict]:
+        events = []
+        day = int(state.get("day", 0))
+        ai_state = state.setdefault("competitor_ai", {})
+        for rival in list(state.get("competitors", [])):
+            if float(rival.get("capital", 0)) >= -250_000:
+                continue
+            state["competitors"].remove(rival)
+            rival["bankrupt"] = True
+            rival["bankrupt_day"] = day
+            record = {
+                "id": rival["id"],
+                "name": rival["name"],
+                "day": day,
+                "business_model_name": rival.get("business_model_name"),
+                "final_capital": round(float(rival.get("capital", 0)), 0),
+            }
+            ai_state.setdefault("bankruptcies", []).append(record)
+            survivors = []
+            for model in state.get("competitor_models", []):
+                if model.get("company_id") != rival["id"]:
+                    survivors.append(model)
+                elif model.get("open_source"):
+                    model["api_enabled"] = False
+                    model["company_bankrupt"] = True
+                    survivors.append(model)
+            state["competitor_models"] = survivors
+            msg = f"{rival['name']} 资金链断裂并破产退出竞争，开源权重仍留在社区"
+            state.setdefault("log", []).append({"day": day, "msg": msg, "cat": "rival"})
+            self._log_action(state, day, msg, rival["id"])
+            events.append({"type": "rival_bankrupt", "msg": msg, "rival_id": rival["id"]})
+        return events
+
+    def _maybe_new_entrant(self, state: dict, ctx) -> dict | None:
+        day = int(state.get("day", 0))
+        ai_state = state.setdefault("competitor_ai", {})
+        if day < int(ai_state.get("next_entrant_day", day + 90)):
+            return None
+        rng = ctx.rng()
+        ai_state["next_entrant_day"] = day + rng.randint(80, 145)
+        if len(state.get("competitors", [])) >= 12:
+            return None
+        cfg = ctx.configs().load("competitors")
+        strategies = cfg.get("strategies", {})
+        strategy_id = rng.choice(list(strategies) or ["mixed_platform"])
+        names = [
+            "VectorForge", "星链智能", "Northstar Labs", "量潮科技", "HelixMind",
+            "青穹模型", "Nova Cognition", "Atlas Kernel", "极昼智能", "Cedar AI",
+        ]
+        count = int(ai_state.get("entrant_count", 0)) + 1
+        name = names[(count - 1) % len(names)] + (f" {count}" if count > len(names) else "")
+        strength = min(0.9, 0.48 + day / 1800.0 + rng.uniform(-0.04, 0.08))
+        seed = {
+            "id": f"entrant_{count}_{str(uuid.uuid4())[:5]}",
+            "name": name,
+            "country": rng.choice(["usa", "china", "europe", "middle_east"]),
+            "strategy": strategy_id,
+            "tier": "challenger" if strength > 0.68 else "startup",
+            "starting_strength": strength,
+            "starting_capital": rng.randint(5_000_000, 28_000_000) * (1.0 + day / 1200.0),
+            "starting_rep": rng.randint(38, 68),
+            "starting_gov": rng.randint(10, 58),
+            "starting_employees": rng.randint(4, 10),
+            "starting_research_bonus": max(1, int(day / 240)),
+            "personality": "新入场公司，会根据市场价格与新评测快速调整产品路线。",
+        }
+        strat = strategies.get(strategy_id, {})
+        rival = self._init_rival(seed, strat, ctx)
+        state.setdefault("competitors", []).append(rival)
+        model = self._build_model(rival, strat, ctx, state=state, version=1, day=day)
+        state.setdefault("competitor_models", []).append(model)
+        if model.get("open_source"):
+            state.setdefault("open_models", []).append(self._to_open_entry(model, rival))
+        ai_state["entrant_count"] = count
+        msg = f"新公司加入竞争：{name}（{rival['business_model_name']} · {rival['tier']}）"
+        self._log_action(state, day, msg, rival["id"])
+        state.setdefault("log", []).append({"day": day, "msg": msg, "cat": "rival"})
+        return {"type": "rival_entry", "msg": msg, "rival_id": rival["id"]}
+
+    def _business_profile(self, strategy_id: str | None, strat: dict) -> dict:
+        return dict(
+            self.BUSINESS_MODELS.get(
+                str(strategy_id),
+                {"id": "mixed", "name": "混合商业化", "contract": 0.5, "ecosystem": 0.3, "government": 0.2, "margin": 0.62},
+            )
+        )
+
+    def _research_max_level(self, ctx, research_id: str) -> int:
+        cfg = ctx.configs().load("research")
+        for category in ("model_research", "data_research", "compute_research"):
+            if research_id in cfg.get(category, {}):
+                return int(cfg[category][research_id].get("max_level", 20))
+        return 36
+
+    def _prune_models(self, state: dict) -> None:
+        kept = []
+        per: dict[str, int] = {}
+        for model in reversed(state.get("competitor_models", [])):
+            cid = model.get("company_id", "")
+            per[cid] = per.get(cid, 0) + 1
+            if per[cid] <= 5:
+                kept.append(model)
+        state["competitor_models"] = list(reversed(kept))
+
     # ------------------------------------------------------------------ model build
 
     def _build_model(
@@ -608,6 +996,7 @@ class CompetitorsSystem:
         rival: dict,
         strat: dict,
         ctx,
+        state: dict | None = None,
         version: int = 1,
         force_open: bool | None = None,
         day: int = 0,
@@ -632,13 +1021,20 @@ class CompetitorsSystem:
         model_type = rng.choices(types, weights=tw, k=1)[0]
         tcfg = ctx.configs().load("model_types").get("model_types", {}).get(model_type, {})
 
-        params_pref = strat.get("param_pref") or [7, 13, 70]
+        capacity_lv = int(model_levels.get("capacity", max(1, int(rival.get("strength", 0.5) * 5))))
+        min_params_b = float(tcfg.get("min_params_b", 0.5))
+        params_pref = [
+            float(value)
+            for value in (strat.get("param_pref") or [7, 13, 70])
+            if min_params_b <= float(value)
+        ]
+        if not params_pref:
+            params_pref = [max(min_params_b, 7.0)]
         # weight later params higher as strength grows
         params_b = float(rng.choice(params_pref))
         if float(rival.get("strength", 0.5)) > 0.8 and len(params_pref) > 1:
             params_b = float(rng.choice(params_pref[len(params_pref) // 2 :]))
 
-        capacity_lv = int(model_levels.get("capacity", max(1, int(rival.get("strength", 0.5) * 5))))
         hidden = calc.compute_hidden_score(
             capacity_level=capacity_lv,
             research_levels=model_levels,
@@ -655,9 +1051,14 @@ class CompetitorsSystem:
         # slow ramp with calendar so day-0 flagships aren't unbeatable SOTA
         day_ramp = min(1.0, 0.55 + day / 180.0)
         hidden = round((hidden * 0.5 + strength_floor * 0.5) * day_ramp + rng.uniform(-4, 3), 2)
-        hidden = calc.clamp(hidden, 5, 200)
+        hidden = max(5.0, hidden)
 
-        benchmarks = ctx.configs().load("market").get("eval_benchmarks", {})
+        market_system = ctx.get_system("market")
+        benchmarks = (
+            market_system.benchmarks_for_state(state or {}, ctx)
+            if market_system
+            else ctx.configs().load("market").get("eval_benchmarks", {})
+        )
         evals = calc.compute_eval_scores(
             hidden,
             research_levels=model_levels,
@@ -683,12 +1084,18 @@ class CompetitorsSystem:
             api = rng.random() < 0.4
 
         mid = f"comp_{rival['id']}_v{version}_{str(uuid.uuid4())[:4]}"
+        presets = ctx.configs().load("model_types").get("param_presets", [])
+        parameter_units = calc.parameter_compute_units(params_b, presets)
+        training_upfront = 8000 + parameter_units * 250 * float(tcfg.get("difficulty", 1.0))
         return {
             "id": mid if version > 1 else f"comp_{rival['id']}_main",
             "name": f"{rival['name']} {self._model_codename(model_type, params_b, version)}",
             "company_id": rival["id"],
             "company": rival["name"],
             "params_b": params_b,
+            "parameter_scale_factor": round(calc.parameter_scaling_factor(params_b), 3),
+            "parameter_compute_units": round(parameter_units, 2),
+            "training_upfront_cost": round(training_upfront, 2),
             "hidden_score": hidden,
             "model_type": model_type,
             "source": "open" if is_open else "closed_competitor",
@@ -741,10 +1148,49 @@ class CompetitorsSystem:
             "hidden_score": m.get("hidden_score"),
             "eval_avg": (m.get("eval_scores") or {}).get("average"),
             "open_source": m.get("open_source"),
+            "api_enabled": m.get("api_enabled"),
+            "price_input": m.get("price_input"),
             "price_output": m.get("price_output"),
+            "daily_users": m.get("daily_users", 0),
+            "daily_revenue": m.get("daily_revenue", 0),
             "params_b": m.get("params_b"),
+            "parameter_scale_factor": round(calc.parameter_scaling_factor(float(m.get("params_b", 7))), 3),
             "model_type": m.get("model_type"),
+            "distilled_from_player": bool(m.get("distilled_from_player")),
+            "teacher_model_name": m.get("teacher_model_name"),
         }
+
+    def _top_models_public(self, models: list[dict]) -> list[dict]:
+        top = sorted(
+            models,
+            key=lambda model: (
+                float((model.get("eval_scores") or {}).get("average", 0)),
+                float(model.get("hidden_score", 0)),
+            ),
+            reverse=True,
+        )[:5]
+        return [
+            {
+                "id": model.get("id"),
+                "name": model.get("name"),
+                "hidden_score": model.get("hidden_score"),
+                "eval_avg": (model.get("eval_scores") or {}).get("average"),
+                "params_b": model.get("params_b"),
+                "parameter_scale_factor": round(
+                    calc.parameter_scaling_factor(float(model.get("params_b", 7))), 3
+                ),
+                "model_type": model.get("model_type"),
+                "open_source": bool(model.get("open_source")),
+                "api_enabled": bool(model.get("api_enabled")),
+                "price_input": model.get("price_input"),
+                "price_output": model.get("price_output"),
+                "daily_users": model.get("daily_users", 0),
+                "daily_revenue": model.get("daily_revenue", 0),
+                "distilled_from_player": bool(model.get("distilled_from_player")),
+                "teacher_model_name": model.get("teacher_model_name"),
+            }
+            for model in top
+        ]
 
     def _log_action(self, state: dict, day: int, msg: str, rival_id: str) -> None:
         log = state.setdefault("competitor_ai", {}).setdefault("action_log", [])

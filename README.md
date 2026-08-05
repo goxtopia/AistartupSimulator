@@ -8,7 +8,11 @@
 
 - **配置驱动**：国家、研究树、芯片、员工特质、市场分段、事件等均在 `data/configs/*.json`
 - **接口化引擎**：`IGameSystem` + `EffectApplier` + `ConfigRegistry`，系统内聚、可插拔
-- **核心系统**：HR / Research / Compute / Training / Market / Events / **Competitors AI**
+- **核心系统**：HR / Research / Dataset / Compute / Training / Market / Contracts / Finance / Events / **Competitors AI**
+- **数据集工程**：独立选项卡、语料配比、员工分配、持续成本与按日构建进度
+- **模型天梯**：玩家与竞品的公开模型按 EVAL 与隐藏能力综合排名
+- **长期采购**：使用达标模型与企业或政府签署 2 年、5 年等固定期限合同，获得持续收入
+- **贷款融资**：动态授信额度、等额本息月供、手续费、信用评分与提前结清
 - **AI 对手**：9 家策略各异的实验室（闭源前沿、开源权重、安全优先、人才掠食者…），会自主研究、发模型，并从玩家处挖角
 - **Logo 设计器**：SVG 形状 + 图标 + 布局 + 配色叠加
 - **存档/读档**：JSON 存档于 `saves/`
@@ -64,7 +68,9 @@ AistartupSimulator/
 - **EVAL 分** = 隐藏分映射 + 研究偏向 + 随机噪声（影响用户选择）
 - **倾向**：开放性（开源比重）、政府关系、公众声誉、透明性（可解读性 − 政府关系惩罚）、创新性（模型研究）
 - **员工满意度** = 个人倾向理想值与公司实际倾向的距离；过低会离职
+- **API 收入**：细分市场活跃池 × 相对吸引力份额 × 日均 Token 用量 × 输入/输出混合单价
 - **开源 API 定价**：锁定为隐藏分最接近的已有 API 模型价格的 ±100%
+- **挖角补偿**：竞争对手成功挖走员工时，按原薪资与职级支付违约金
 
 ## API 摘要
 
@@ -79,6 +85,8 @@ AistartupSimulator/
 | POST | `/api/research/*` | 研究 |
 | POST | `/api/compute/purchase` | 采购算力 |
 | POST | `/api/training/*` | 数据集/训练/发布/蒸馏 |
+| POST | `/api/market/contracts/sign` | 签署长期采购合同 |
+| POST | `/api/finance/borrow` / `repay` | 申请贷款 / 提前结清 |
 | POST | `/api/events/choose` | 事件选项 |
 
 ## 开发

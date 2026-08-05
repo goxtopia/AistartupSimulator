@@ -1,0 +1,145 @@
+{
+  "loan_products": {
+    "startup_bridge": {
+      "id": "startup_bridge",
+      "name": "创业周转贷",
+      "lender": "先锋商业银行",
+      "description": "面向早期公司的短期信用贷款，审批快但利率较高。",
+      "term_years": 1,
+      "apr": 0.14,
+      "origination_fee_rate": 0.02,
+      "early_repay_fee_rate": 0.01,
+      "min_amount": 50000,
+      "max_amount": 500000,
+      "amount_step": 50000,
+      "requirements": {
+        "min_day": 0,
+        "min_public_rep": 0,
+        "min_monthly_revenue": 0,
+        "min_gov_relation": 0
+      },
+      "color": "#fb923c"
+    },
+    "growth_credit": {
+      "id": "growth_credit",
+      "name": "增长信用贷",
+      "lender": "远景科技银行",
+      "description": "根据稳定收入和市场声誉提供的中期扩张资金。",
+      "term_years": 2,
+      "apr": 0.09,
+      "origination_fee_rate": 0.01,
+      "early_repay_fee_rate": 0.005,
+      "min_amount": 250000,
+      "max_amount": 2000000,
+      "amount_step": 250000,
+      "requirements": {
+        "min_day": 30,
+        "min_public_rep": 25,
+        "min_monthly_revenue": 10000,
+        "min_gov_relation": 0
+      },
+      "color": "#38bdf8"
+    },
+    "industrial_policy": {
+      "id": "industrial_policy",
+      "name": "产业发展贷款",
+      "lender": "国家产业发展基金",
+      "description": "长期低息政策性融资，要求良好的政府关系和经营记录。",
+      "term_years": 5,
+      "apr": 0.05,
+      "origination_fee_rate": 0.005,
+      "early_repay_fee_rate": 0,
+      "min_amount": 500000,
+      "max_amount": 5000000,
+      "amount_step": 500000,
+      "requirements": {
+        "min_day": 60,
+        "min_public_rep": 30,
+        "min_monthly_revenue": 25000,
+        "min_gov_relation": 45
+      },
+      "color": "#34d399"
+    },
+    "frontier_facility": {
+      "id": "frontier_facility",
+      "name": "前沿算力银团贷",
+      "lender": "全球算力融资银团",
+      "description": "为成熟 AI 公司提供的大额长期贷款，要求较强现金流和信用。",
+      "term_years": 3,
+      "apr": 0.072,
+      "origination_fee_rate": 0.012,
+      "early_repay_fee_rate": 0.006,
+      "min_amount": 1000000,
+      "max_amount": 10000000,
+      "amount_step": 1000000,
+      "requirements": {
+        "min_day": 120,
+        "min_public_rep": 45,
+        "min_monthly_revenue": 150000,
+        "min_gov_relation": 0
+      },
+      "color": "#a78bfa"
+    }
+  },
+  "funding_tools": {
+    "seed_equity": {
+      "id": "seed_equity",
+      "type": "equity",
+      "name": "种子股权轮",
+      "provider": "AI 创业投资联盟",
+      "description": "快速获得无需偿还的早期资金，但永久稀释创始团队持股。",
+      "amount": 750000,
+      "equity_percent": 0.1,
+      "max_uses": 1,
+      "requirements": {"min_day": 0, "min_public_rep": 0, "min_monthly_revenue": 0},
+      "color": "#f472b6"
+    },
+    "growth_equity": {
+      "id": "growth_equity",
+      "type": "equity",
+      "name": "成长股权轮",
+      "provider": "全球科技成长基金",
+      "description": "以成熟业务数据换取大额扩张资本，无还款压力但会进一步稀释股权。",
+      "amount": 3000000,
+      "equity_percent": 0.12,
+      "max_uses": 1,
+      "requirements": {"min_day": 90, "min_public_rep": 40, "min_monthly_revenue": 100000},
+      "color": "#a78bfa"
+    },
+    "revenue_advance": {
+      "id": "revenue_advance",
+      "type": "revenue_share",
+      "name": "API 收入分成融资",
+      "provider": "经常性收入资本",
+      "description": "以未来 API 与合同收入换取现金；每日按收入比例偿还，低收入期压力更小。",
+      "amount": 600000,
+      "revenue_share": 0.12,
+      "repayment_multiple": 1.35,
+      "max_uses": 3,
+      "requirements": {"min_day": 30, "min_public_rep": 20, "min_monthly_revenue": 25000},
+      "color": "#22d3ee"
+    },
+    "research_grant": {
+      "id": "research_grant",
+      "type": "grant",
+      "name": "前沿科研专项补助",
+      "provider": "国家科学与产业委员会",
+      "description": "不稀释、不偿还的专项资金，需要研究积累与良好政府关系。",
+      "amount": 500000,
+      "max_uses": 1,
+      "requirements": {"min_day": 45, "min_public_rep": 25, "min_gov_relation": 30, "min_research_levels": 5},
+      "color": "#34d399"
+    }
+  },
+  "credit": {
+    "base_score": 35,
+    "rep_weight": 0.25,
+    "gov_weight": 0.15,
+    "revenue_cap": 20,
+    "capital_cap": 10,
+    "missed_payment_penalty": 8,
+    "base_monthly_capacity": 25000,
+    "revenue_capacity_ratio": 0.45,
+    "rep_capacity_per_point": 700
+  }
+}

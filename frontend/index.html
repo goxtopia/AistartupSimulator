@@ -132,6 +132,7 @@
           <div class="stat"><span class="k">Day</span><span id="stat-day" class="v">0</span></div>
           <div class="stat money"><span class="k">资金</span><span id="stat-capital" class="v">$0</span></div>
           <div class="stat"><span class="k">日收入</span><span id="stat-revenue" class="v">$0</span></div>
+          <div class="stat debt"><span class="k">负债</span><span id="stat-debt" class="v">$0</span></div>
           <div class="stat"><span class="k">员工</span><span id="stat-emps" class="v">0</span></div>
           <div class="stat"><span class="k">算力</span><span id="stat-flops" class="v">0 TF</span></div>
         </div>
@@ -149,10 +150,15 @@
           <button data-tab="dashboard" class="on">总览</button>
           <button data-tab="hr">人才</button>
           <button data-tab="research">研究</button>
+          <button data-tab="datasets">数据集</button>
           <button data-tab="compute">算力</button>
           <button data-tab="training">训练</button>
-          <button data-tab="models">模型</button>
+          <button data-tab="models">自有模型</button>
+          <button data-tab="leaderboard">排行榜</button>
           <button data-tab="market">市场</button>
+          <button data-tab="rivals">竞争对手</button>
+          <button data-tab="finance">财务状况</button>
+          <button data-tab="funding">融资</button>
           <button data-tab="events">事件</button>
           <button data-tab="log">日志</button>
         </nav>
@@ -193,6 +199,8 @@
               <div class="spacer"></div>
               <button class="btn sm" id="btn-refresh-hr">刷新人才市场 ($5k)</button>
             </div>
+            <div id="chief-scientist-panel" class="card chief-scientist-panel"></div>
+            <div id="auto-hire-panel" class="card auto-hire-panel"></div>
             <div class="grid-2">
               <div class="card">
                 <h4>在职员工 <span id="emp-count" class="badge">0</span></h4>
@@ -215,13 +223,40 @@
               <h3>研究方向</h3>
               <div class="seg" id="research-cat">
                 <button type="button" data-v="model" class="on">模型</button>
-                <button type="button" data-v="data">素材</button>
-                <button type="button" data-v="compute">算力</button>
+                <button type="button" data-v="data">数据</button>
+                <button type="button" data-v="compute">推理 / 算力</button>
               </div>
               <span class="muted" style="font-size:0.82rem">选定方向 → 投入人手 → 推进天数累积进度升级</span>
             </div>
             <div id="research-focus-bar" class="pill-row" style="margin-bottom:0.75rem"></div>
             <div id="research-list" class="research-grid"></div>
+          </div>
+
+          <!-- DATASETS -->
+          <div class="tab" id="tab-datasets">
+            <div class="toolbar">
+              <h3>数据集构建</h3>
+              <div id="ds-summary" class="pill-row"></div>
+            </div>
+            <div class="grid-2">
+              <div class="card">
+                <h3>新建数据工程</h3>
+                <p class="muted" style="font-size:0.82rem;margin-top:-0.4rem">配置语料方向并投入员工，项目将按天累积进度和成本。</p>
+                <label>名称<input id="ds-name" type="text" placeholder="自研混合语料 v1" /></label>
+                <label class="check"><input id="ds-open" type="checkbox" checked /> 使用开源素材作为 base</label>
+                <div id="ds-weights" class="weight-grid"></div>
+                <label>目标周期（天）<input id="ds-days" type="number" min="5" max="180" value="20" /></label>
+                <label>分配员工（可多选）<select id="ds-emps" multiple size="6"></select></label>
+                <div id="ds-cost-estimate" class="cost-estimate"></div>
+                <button class="btn primary" id="btn-create-ds">开始构建</button>
+              </div>
+              <div class="card">
+                <h3>构建队列</h3>
+                <div id="ds-jobs" class="stack"></div>
+                <h4 class="mt">可用数据集</h4>
+                <div id="ds-list" class="stack"></div>
+              </div>
+            </div>
           </div>
 
           <!-- COMPUTE -->
@@ -235,17 +270,16 @@
 
           <!-- TRAINING -->
           <div class="tab" id="tab-training">
-            <div class="grid-2">
-              <div class="card">
-                <h3>创建数据集</h3>
-                <label>名称<input id="ds-name" type="text" placeholder="自研混合语料 v1" /></label>
-                <label class="check"><input id="ds-open" type="checkbox" checked /> 使用开源素材作为 base</label>
-                <div id="ds-weights" class="weight-grid"></div>
-                <button class="btn primary sm" id="btn-create-ds">创建数据集</button>
-                <h4 class="mt">已有数据集</h4>
-                <div id="ds-list" class="stack"></div>
+            <div class="page-hero training-hero">
+              <div>
+                <span class="eyebrow">MODEL LAB</span>
+                <h2>训练工坊</h2>
+                <p>从零预训练或基于已有模型建立新的基座。模型完成后的微调、蒸馏与 RL，请前往模型资产中心继续迭代。</p>
               </div>
-              <div class="card">
+              <div class="hero-metric"><span>进行中</span><b id="training-active-count">0</b><small>个训练任务</small></div>
+            </div>
+            <div class="training-layout">
+              <div class="card accent-card">
                 <h3>立项训练</h3>
                 <p class="muted" style="font-size:0.82rem;margin-top:-0.4rem">立项后按天累积进度；可随时调整人手，进度保留。</p>
                 <label>模型名<input id="tr-name" type="text" placeholder="Spark-7B" /></label>
@@ -260,40 +294,77 @@
                 <label>分配员工（可多选）
                   <select id="tr-emps" multiple size="5"></select>
                 </label>
+                <div id="tr-cost-estimate" class="cost-estimate"></div>
                 <button class="btn primary" id="btn-start-train">开始训练</button>
-                <h4 class="mt">进行中的训练</h4>
-                <div id="tr-active" class="stack"></div>
               </div>
-            </div>
-            <div class="card mt">
-              <h3>蒸馏微调</h3>
-              <div class="row-form">
-                <label>名称<input id="di-name" type="text" placeholder="Spark-Distill-7B" /></label>
-                <label>教师来源
-                  <select id="di-source">
-                    <option value="own">自有模型</option>
-                    <option value="open">开源模型</option>
-                    <option value="closed_competitor">竞品闭源</option>
-                  </select>
-                </label>
-                <label>教师模型<select id="di-teacher"></select></label>
-                <label>参数量<select id="di-params"></select></label>
-                <label>数据集<select id="di-ds"></select></label>
-                <button class="btn" id="btn-distill">开始蒸馏</button>
+              <div class="card">
+                <div class="section-heading">
+                  <div><span class="eyebrow">PIPELINE</span><h3>训练队列</h3></div>
+                  <span class="muted">可调整团队或暂停</span>
+                </div>
+                <div id="tr-active" class="stack"></div>
               </div>
             </div>
           </div>
 
           <!-- MODELS -->
           <div class="tab" id="tab-models">
-            <div id="model-list" class="model-grid"></div>
+            <div class="page-hero model-page-hero">
+              <div>
+                <span class="eyebrow">MODEL PORTFOLIO</span>
+                <h2>模型资产中心</h2>
+                <p>集中管理公司的模型、版本谱系、评测表现与商业状态，并从任意版本继续微调、蒸馏或进行 RL 后训练。</p>
+                <button class="btn primary hero-action" id="btn-new-distill">从教师模型新建蒸馏模型</button>
+              </div>
+              <div id="model-portfolio-summary" class="portfolio-summary"></div>
+            </div>
+            <div id="model-auto-rl" class="card model-auto-rl"></div>
+            <div class="model-workbench">
+              <aside class="card model-browser">
+                <div class="section-heading">
+                  <div><span class="eyebrow">VERSIONS</span><h3>模型与版本</h3></div>
+                </div>
+                <div id="model-nav" class="model-nav"></div>
+              </aside>
+              <section id="model-detail" class="model-detail"></section>
+            </div>
+          </div>
+
+          <!-- LEADERBOARD -->
+          <div class="tab" id="tab-leaderboard">
+            <div class="page-hero leaderboard-page-hero">
+              <div>
+                <span class="eyebrow">MODEL RANKINGS</span>
+                <h2>模型排行榜</h2>
+                <p>分别追踪闭源与开源模型 Top 20。动态高难 EVAL 会持续改变排名和 API 竞争力。</p>
+              </div>
+              <div class="hero-metric"><span>排名规则</span><b>70 / 30</b><small>EVAL / 隐藏能力</small></div>
+            </div>
+            <div class="card mt">
+              <div class="toolbar"><div><h3>全球模型天梯</h3><span class="muted">只显示所选发布方式的前 20 名</span></div><div class="seg" id="model-ladder-mode"><button data-v="closed" class="on">闭源 Top 20</button><button data-v="open">开源 Top 20</button></div></div>
+              <div id="model-leaderboard" class="leaderboard"></div>
+            </div>
           </div>
 
           <!-- MARKET -->
           <div class="tab" id="tab-market">
             <div class="toolbar">
               <h3>市场与 AI 对手</h3>
-              <div id="threat-pill" class="pill-row"></div>
+              <div class="market-toolbar-actions"><div id="threat-pill" class="pill-row"></div><button class="btn sm" id="btn-open-finance">查看财务状况</button></div>
+            </div>
+            <div id="revenue-summary" class="income-grid"></div>
+            <div class="card mt">
+              <div class="section-heading">
+                <div><span class="eyebrow">LIVE BENCHMARKS</span><h3>动态高难评测</h3></div>
+                <span class="muted">新评测会重新改变榜单与 API 市场份额</span>
+              </div>
+              <div id="market-evals" class="dynamic-eval-grid"></div>
+            </div>
+            <div class="card mt">
+              <h3>长期采购合同</h3>
+              <p class="muted">使用训练完成的自有模型投标。合同按日结算，到期后自动停止。</p>
+              <div id="active-contracts" class="stack"></div>
+              <div id="contract-offers" class="contract-grid mt"></div>
             </div>
             <div class="grid-2">
               <div class="card">
@@ -301,17 +372,97 @@
                 <div id="market-segments"></div>
               </div>
               <div class="card">
-                <h3>对手动态</h3>
+                <div class="toolbar"><h3>竞争概览</h3><button class="btn sm" id="btn-open-rivals">打开情报中心</button></div>
                 <div id="rival-log" class="log-mini"></div>
               </div>
             </div>
-            <div class="card mt">
-              <h3>竞争对手（策略 AI）</h3>
-              <div id="market-comps" class="rival-grid"></div>
+          </div>
+
+          <!-- RIVALS -->
+          <div class="tab" id="tab-rivals">
+            <div class="page-hero rivals-page-hero">
+              <div>
+                <span class="eyebrow">COMPETITIVE INTELLIGENCE</span>
+                <h2>竞争对手情报中心</h2>
+                <p>追踪所有在营 AI 公司、商业模式、盈利状况、研究路线与各自模型 Top 5。</p>
+              </div>
+              <div id="rivals-summary" class="portfolio-summary"></div>
             </div>
+            <div class="grid-2 rivals-intel-grid">
+              <div class="card">
+                <div class="section-heading"><div><span class="eyebrow">MARKET MOVES</span><h3>竞争动态</h3></div></div>
+                <div id="rivals-log" class="log-mini"></div>
+              </div>
+              <div class="card">
+                <div class="section-heading"><div><span class="eyebrow">EXITS</span><h3>破产与退出</h3></div></div>
+                <div id="rivals-bankruptcies" class="stack"></div>
+              </div>
+            </div>
+            <div id="rivals-directory" class="rivals-directory mt"></div>
+          </div>
+
+          <!-- FINANCE -->
+          <div class="tab" id="tab-finance">
+            <div class="page-hero finance-hero">
+              <div>
+                <span class="eyebrow">FINANCIAL HEALTH</span>
+                <h2>财务状况</h2>
+                <p>按当前经营状态折算 30 天收入与支出；净利润计入人力成本和负债利息。</p>
+              </div>
+            </div>
+            <div id="finance-summary" class="income-grid finance-summary"></div>
+            <div class="grid-2 finance-ledger-grid">
+              <div class="card finance-breakdown-card">
+                <div class="section-heading"><div><span class="eyebrow">INFLOWS</span><h3>月化收入</h3></div></div>
+                <div id="finance-income-breakdown" class="finance-breakdown"></div>
+              </div>
+              <div class="card finance-breakdown-card">
+                <div class="section-heading"><div><span class="eyebrow">OUTFLOWS</span><h3>月化支出</h3></div></div>
+                <div id="finance-expense-breakdown" class="finance-breakdown"></div>
+              </div>
+            </div>
+            <div id="finance-cashflow-status" class="card finance-cashflow-status mt"></div>
+          </div>
+
+          <!-- FUNDING -->
+          <div class="tab" id="tab-funding">
+            <div class="page-hero funding-hero">
+              <div>
+                <span class="eyebrow">CAPITAL &amp; CREDIT</span>
+                <h2>融资中心</h2>
+                <p>组合使用股权、收入分成、科研补助与贷款；不同资金来源有不同成本和门槛。</p>
+              </div>
+              <div id="credit-orb" class="credit-orb"><span>信用评分</span><b>0</b></div>
+            </div>
+            <div id="funding-summary" class="income-grid finance-summary"></div>
+            <div class="section-heading mt">
+              <div><span class="eyebrow">FUNDING TOOLBOX</span><h3>非贷款融资工具</h3></div>
+              <span class="muted">无固定月供不代表没有成本，请留意股权与收入分成</span>
+            </div>
+            <div id="funding-tools" class="funding-tool-grid"></div>
+            <div class="card mt accent-card">
+              <div class="section-heading"><div><span class="eyebrow">REVENUE FINANCING</span><h3>收入分成融资</h3></div></div>
+              <div id="active-revenue-financing" class="loan-list"></div>
+            </div>
+            <div class="section-heading mt">
+              <div><span class="eyebrow">LOAN BOOK</span><h3>贷款融资</h3></div>
+              <span class="muted">偿还本金不计入利润，但会减少现金流</span>
+            </div>
+            <div id="finance-debt-summary" class="income-grid finance-debt-summary"></div>
+            <div class="card mt accent-card">
+              <div class="section-heading">
+                <div><span class="eyebrow">ACTIVE DEBT</span><h3>当前贷款</h3></div>
+              </div>
+              <div id="active-loans" class="loan-list"></div>
+            </div>
+            <div class="section-heading mt">
+              <div><span class="eyebrow">CREDIT MARKET</span><h3>可用融资方案</h3></div>
+              <span class="muted">额度会随收入、声誉与现有负债动态调整</span>
+            </div>
+            <div id="loan-products" class="loan-grid"></div>
             <div class="card mt">
-              <h3>竞品模型</h3>
-              <div id="rival-models" class="stack"></div>
+              <div class="section-heading"><div><span class="eyebrow">LEDGER</span><h3>还款记录</h3></div></div>
+              <div id="loan-payment-log" class="log-mini"></div>
             </div>
           </div>
 

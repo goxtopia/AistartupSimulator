@@ -5,7 +5,12 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from backend.app.engine.calculators.scores import clamp, compute_company_tendencies
+from backend.app.engine.calculators.scores import (
+    chief_scientist_profile,
+    clamp,
+    compute_company_tendencies,
+    team_skill_multiplier,
+)
 
 
 class HRSystem:
@@ -19,6 +24,14 @@ class HRSystem:
             "recruit_cost_mult": 1.0,
             "last_refresh_day": 0,
             "poach_cooldown": 0,
+            "chief_scientist_id": None,
+            "auto_hire": {
+                "enabled": False,
+                "status": "off",
+                "hires_completed": 0,
+                "last_hire_day": -999,
+                "max_hires_per_cycle": 3,
+            },
         }
         self.refresh_candidates(state, ctx, count=6)
 
@@ -62,17 +75,21 @@ class HRSystem:
                 leavers.append(emp)
 
         for emp in leavers:
-            state["employees"].remove(emp)
-            # unassign
-            self._unassign(state, emp["id"])
-            msg = f"{emp['name']} 因倾向不被满足而离职"
+            _ok, msg, _departed = self.voluntary_leave(
+                state,
+                emp["id"],
+                reason="因倾向不被满足而主动离职",
+            )
             events.append({"type": "leave", "msg": msg, "employee_id": emp["id"]})
-            state.setdefault("log", []).append({"day": day, "msg": msg, "cat": "hr"})
 
         # Refresh candidates periodically
         if day - int(hr.get("last_refresh_day", 0)) >= 7:
             self.refresh_candidates(state, ctx, count=4)
             hr["last_refresh_day"] = day
+
+        auto_hire_event = self._run_auto_hire_batch(state, ctx)
+        if auto_hire_event:
+            events.append(auto_hire_event)
 
         if hr.get("poach_cooldown", 0) > 0:
             hr["poach_cooldown"] = max(0, int(hr["poach_cooldown"]) - days)
@@ -80,10 +97,57 @@ class HRSystem:
         return events
 
     def serialize_public(self, state: dict[str, Any], ctx) -> dict[str, Any]:
+        self._ensure_hr_state(state)
+        chief = chief_scientist_profile(state)
+        multiplier = team_skill_multiplier(state)
+        employees = [
+            {
+                **employee,
+                "severance_cost": round(float(employee.get("salary", 0)) * 0.5, 2),
+                "is_chief_scientist": bool(chief and chief["employee_id"] == employee["id"]),
+                "effective_skill_multiplier": round(multiplier, 3),
+                "effective_skills": {
+                    key: round(float(value) * multiplier, 1)
+                    for key, value in (employee.get("skills") or {}).items()
+                },
+            }
+            for employee in state.get("employees", [])
+        ]
+        candidates = [
+            {**candidate, "hire_cost": round(self._hire_cost(state, ctx, candidate), 2)}
+            for candidate in state.get("hr", {}).get("candidates", [])
+        ]
+        poach_estimates = {}
+        for competitor in state.get("competitors", []):
+            roster = list(competitor.get("employees") or [])
+            if not roster:
+                continue
+            ranked = sorted(
+                roster,
+                key=lambda employee: sum(float(value) for value in (employee.get("skills") or {}).values()),
+                reverse=True,
+            )[:5]
+            offers = {}
+            for multiplier in (1.5, 2.2):
+                costs = [
+                    float(person.get("salary", 15000)) * 2 * multiplier
+                    + float(person.get("signing_bonus", person.get("salary", 15000))) * multiplier
+                    for person in ranked
+                ]
+                offers[str(multiplier)] = {
+                    "min_total": round(min(costs), 2),
+                    "max_total": round(max(costs), 2),
+                    "min_search": round(min(costs) * 0.3, 2),
+                    "max_search": round(max(costs) * 0.3, 2),
+                }
+            poach_estimates[competitor["id"]] = offers
         return {
-            "employees": state.get("employees", []),
-            "candidates": state.get("hr", {}).get("candidates", []),
+            "employees": employees,
+            "candidates": candidates,
             "poach_cooldown": state.get("hr", {}).get("poach_cooldown", 0),
+            "poach_estimates": poach_estimates,
+            "chief_scientist": chief,
+            "auto_hire": dict(state.get("hr", {}).get("auto_hire", {})),
         }
 
     # ---- actions ----
@@ -108,12 +172,7 @@ class HRSystem:
         cand = next((c for c in hr.get("candidates", []) if c["id"] == candidate_id), None)
         if not cand:
             return False, "候选人不存在或已失效", None
-        cost = float(cand.get("signing_bonus", 0)) + float(cand.get("salary", 0))
-        country_cfg = ctx.configs().get("countries", "countries", state["company"]["country"], default={}) or {}
-        cost *= float(country_cfg.get("talent_cost_multiplier", 1.0))
-        cost *= float(hr.get("recruit_cost_mult", 1.0))
-        bg = state["company"].get("founder_background_cfg", {})
-        cost *= float(bg.get("recruit_cost_multiplier", 1.0))
+        cost = self._hire_cost(state, ctx, cand)
 
         if state["company"]["capital"] < cost:
             return False, f"资金不足（需要 ${cost:,.0f}）", None
@@ -139,11 +198,315 @@ class HRSystem:
         if not emp:
             return False, "员工不存在"
         emps.remove(emp)
+        if state.get("hr", {}).get("chief_scientist_id") == employee_id:
+            state["hr"]["chief_scientist_id"] = None
         self._unassign(state, employee_id)
         # Severance
         sev = float(emp.get("salary", 0)) * 0.5
         state["company"]["capital"] -= sev
         return True, f"已解雇 {emp['name']}（补偿 ${sev:,.0f}）"
+
+    def set_chief_scientist(
+        self, state: dict[str, Any], employee_id: str | None
+    ) -> tuple[bool, str, dict | None]:
+        hr = state.setdefault("hr", {})
+        if not employee_id:
+            previous = chief_scientist_profile(state)
+            hr["chief_scientist_id"] = None
+            if not previous:
+                return True, "当前没有首席科学家", None
+            return True, f"已解除 {previous['name']} 的首席科学家职务", None
+        employee = next(
+            (item for item in state.get("employees", []) if item["id"] == employee_id), None
+        )
+        if not employee:
+            return False, "只能从在职员工中任命首席科学家", None
+        hr["chief_scientist_id"] = employee_id
+        profile = chief_scientist_profile(state)
+        return (
+            True,
+            f"已任命 {employee['name']} 为首席科学家，全员能力 ×{profile['team_skill_multiplier']:.3f}",
+            profile,
+        )
+
+    def set_auto_hire(
+        self,
+        state: dict[str, Any],
+        ctx,
+        enabled: bool,
+        max_hires_per_cycle: int = 3,
+    ) -> tuple[bool, str, dict]:
+        self._ensure_hr_state(state)
+        automation = state["hr"]["auto_hire"]
+        was_enabled = bool(automation.get("enabled"))
+        automation["max_hires_per_cycle"] = max(1, min(20, int(max_hires_per_cycle)))
+        automation["enabled"] = bool(enabled)
+        automation["updated_day"] = state.get("day", 0)
+        if not enabled:
+            automation["status"] = "off"
+            automation["status_message"] = "自动雇佣已关闭"
+            return True, "已关闭自动雇佣", automation
+        automation["status"] = "planning"
+        automation["status_message"] = "正在分析 AUTO 研究的人才缺口"
+        if was_enabled:
+            return (
+                True,
+                f"自动雇佣设置已更新：每 7 天最多 {automation['max_hires_per_cycle']} 人",
+                automation,
+            )
+        event = self._run_auto_hire_batch(state, ctx, force=True)
+        detail = event["msg"] if event else automation.get("status_message", "等待招聘")
+        return True, f"已开启自动雇佣：{detail}", automation
+
+    def _run_auto_hire_batch(
+        self, state: dict[str, Any], ctx, *, force: bool = False
+    ) -> dict[str, Any] | None:
+        self._ensure_hr_state(state)
+        automation = state["hr"]["auto_hire"]
+        if not automation.get("enabled"):
+            return None
+        day = int(state.get("day", 0))
+        if not force and day - int(automation.get("last_hire_day", -999)) < 7:
+            automation["status"] = "cooldown"
+            automation["status_message"] = (
+                f"招聘团队正在评估新一批人才（每 7 天最多录用 "
+                f"{int(automation.get('max_hires_per_cycle', 3))} 人）"
+            )
+            return None
+
+        events: list[dict[str, Any]] = []
+        limit = max(1, min(20, int(automation.get("max_hires_per_cycle", 3))))
+        for _ in range(limit):
+            event = self._run_auto_hire_once(state, ctx)
+            if not event:
+                break
+            events.append(event)
+        if not events:
+            return None
+        cycle_hires = [
+            {
+                "employee_id": event["employee_id"],
+                "employee_name": event.get("employee_name"),
+                "research_id": event["research_id"],
+                "research_name": event.get("research_name"),
+            }
+            for event in events
+        ]
+        automation["last_cycle_hires"] = cycle_hires
+        automation["hires_this_cycle"] = len(events)
+        automation["status"] = "hired"
+        automation["status_message"] = (
+            f"本轮已自动录用 {len(events)} 人："
+            + "、".join(item.get("employee_name") or item["employee_id"] for item in cycle_hires)
+        )
+        msg = f"自动雇佣本轮完成：录用 {len(events)} 人（上限 {limit} 人）"
+        return {"type": "auto_hire_batch", "msg": msg, "hires": cycle_hires}
+
+    def _run_auto_hire_once(self, state: dict[str, Any], ctx) -> dict[str, Any] | None:
+        automation = state["hr"]["auto_hire"]
+        day = int(state.get("day", 0))
+
+        research_cfg = ctx.configs().load("research")
+        levels = state.get("research", {}).get("levels", {})
+        topics: list[dict[str, Any]] = []
+        category_used: dict[str, set[str]] = {"model": set(), "data": set(), "compute": set()}
+        for research_id, current in levels.items():
+            if not isinstance(current, dict):
+                continue
+            category = str(current.get("category") or "model")
+            category_used.setdefault(category, set()).update(current.get("employee_ids") or [])
+            if not current.get("auto_enabled"):
+                continue
+            cfg_key = {
+                "model": "model_research",
+                "data": "data_research",
+                "compute": "compute_research",
+            }.get(category, "model_research")
+            config = research_cfg.get(cfg_key, {}).get(research_id, {})
+            pending_employees = [
+                employee
+                for employee in state.get("employees", [])
+                if employee.get("auto_hire_target_research_id") == research_id
+                and not employee.get("assigned_to")
+            ]
+            category_used.setdefault(category, set()).update(
+                employee["id"] for employee in pending_employees
+            )
+            assigned = len(current.get("employee_ids") or []) + len(pending_employees)
+            desired = min(4, max(2, int(round(float(config.get("base_time_days", 14)) / 7.0))))
+            topics.append(
+                {
+                    "id": research_id,
+                    "name": config.get("name", research_id),
+                    "category": category,
+                    "config": config,
+                    "assigned": assigned,
+                    "desired": desired,
+                    "deficit": max(0, desired - assigned),
+                }
+            )
+        if not topics:
+            automation.update(
+                {
+                    "status": "waiting_auto_research",
+                    "status_message": "尚未开启任何 AUTO 研究课题",
+                    "target_research_id": None,
+                    "candidate_id": None,
+                }
+            )
+            return None
+
+        topics = [
+            topic
+            for topic in topics
+            if topic["deficit"] > 0
+            and len(category_used.get(topic["category"], set())) < 20
+        ]
+        if not topics:
+            automation.update(
+                {
+                    "status": "staffed",
+                    "status_message": "所有 AUTO 研究已达到建议团队规模",
+                    "target_research_id": None,
+                    "candidate_id": None,
+                }
+            )
+            return None
+
+        candidates = list(state.get("hr", {}).get("candidates", []))
+        choices: list[tuple[int, float, float, dict, dict, float]] = []
+        for topic in topics:
+            for candidate in candidates:
+                fit = self._auto_hire_research_fit(state, candidate, topic["config"])
+                if fit < 25.0:
+                    continue
+                cost = self._hire_cost(state, ctx, candidate)
+                unmet = 1 if topic["assigned"] == 0 else 0
+                marginal = 1.0 / (1.0 + 0.42 * topic["assigned"])
+                benefit = fit * marginal * (1.45 if unmet else 1.0)
+                roi = benefit / max(cost + float(candidate.get("salary", 0)) * 2.0, 1.0) * 100_000
+                choices.append((unmet, roi, fit, topic, candidate, cost))
+        if not choices:
+            automation.update(
+                {
+                    "status": "waiting_candidate",
+                    "status_message": "人才市场暂无符合 AUTO 研究技能要求的候选人",
+                    "candidate_id": None,
+                }
+            )
+            return None
+
+        unmet, roi, fit, topic, candidate, cost = max(
+            choices, key=lambda item: (item[0], item[1], item[2])
+        )
+        monthly_payroll = sum(float(employee.get("salary", 0)) for employee in state.get("employees", []))
+        cash_reserve = max(100_000.0, monthly_payroll * 3.0)
+        automation.update(
+            {
+                "target_research_id": topic["id"],
+                "target_research_name": topic["name"],
+                "target_unmet": bool(unmet),
+                "candidate_id": candidate["id"],
+                "candidate_name": candidate.get("name"),
+                "candidate_fit": round(fit, 1),
+                "candidate_roi": round(roi, 2),
+                "estimated_hire_cost": round(cost, 2),
+                "cash_reserve": round(cash_reserve, 2),
+            }
+        )
+        if float(state.get("company", {}).get("capital", 0)) - cost < cash_reserve:
+            automation["status"] = "waiting_funds"
+            automation["status_message"] = (
+                f"等待资金：{candidate.get('name')} 适合 {topic['name']}，"
+                f"但需保留 ${cash_reserve:,.0f} 安全现金"
+            )
+            return None
+
+        ok, message, employee = self.hire(state, ctx, candidate["id"])
+        if not ok or not employee:
+            automation["status"] = "waiting"
+            automation["status_message"] = message
+            return None
+        employee["auto_hire_target_research_id"] = topic["id"]
+        automation.update(
+            {
+                "status": "hired",
+                "status_message": (
+                    f"已为 {topic['name']} 招聘 {employee['name']}；"
+                    f"匹配 {fit:.0f}，收益成本分 {roi:.1f}"
+                ),
+                "last_hire_day": day,
+                "hires_completed": int(automation.get("hires_completed", 0)) + 1,
+                "last_employee_id": employee["id"],
+                "last_employee_name": employee.get("name"),
+            }
+        )
+        msg = f"自动雇佣：{employee['name']} 加入公司，优先补充 {topic['name']}"
+        state.setdefault("log", []).append({"day": day, "msg": msg, "cat": "hr"})
+        return {
+            "type": "auto_hire",
+            "msg": msg,
+            "employee_id": employee["id"],
+            "employee_name": employee.get("name"),
+            "research_id": topic["id"],
+            "research_name": topic["name"],
+        }
+
+    def _auto_hire_research_fit(
+        self, state: dict[str, Any], candidate: dict, research_config: dict
+    ) -> float:
+        requirements = research_config.get("required_skills") or {}
+        skills = candidate.get("skills") or {}
+        if not requirements:
+            return (
+                sum(float(value) for value in skills.values())
+                / max(1, len(skills))
+                * team_skill_multiplier(state)
+            )
+        total_weight = sum(max(0.1, float(weight)) for weight in requirements.values())
+        return sum(
+            float(skills.get(skill, 0))
+            * team_skill_multiplier(state)
+            * max(0.1, float(weight))
+            for skill, weight in requirements.items()
+        ) / max(total_weight, 0.1)
+
+    def _ensure_hr_state(self, state: dict[str, Any]) -> None:
+        hr = state.setdefault("hr", {})
+        hr.setdefault("chief_scientist_id", None)
+        hr.setdefault(
+            "auto_hire",
+            {
+                "enabled": False,
+                "status": "off",
+                "hires_completed": 0,
+                "last_hire_day": -999,
+                "max_hires_per_cycle": 3,
+            },
+        )
+        hr["auto_hire"].setdefault("max_hires_per_cycle", 3)
+
+    def voluntary_leave(
+        self,
+        state: dict[str, Any],
+        employee_id: str,
+        *,
+        reason: str = "主动离职",
+    ) -> tuple[bool, str, dict | None]:
+        """Remove an employee without severance or any other capital adjustment."""
+        employees = state.get("employees", [])
+        employee = next((item for item in employees if item["id"] == employee_id), None)
+        if not employee:
+            return False, "员工不存在", None
+        employees.remove(employee)
+        if state.get("hr", {}).get("chief_scientist_id") == employee_id:
+            state["hr"]["chief_scientist_id"] = None
+        self._unassign(state, employee_id)
+        msg = f"{employee['name']} {reason}（不支付离职补偿）"
+        state.setdefault("log", []).append(
+            {"day": state.get("day", 0), "msg": msg, "cat": "hr"}
+        )
+        return True, msg, employee
 
     def train_skill(self, state: dict[str, Any], ctx, employee_id: str, skill: str, intensity: float = 1.0) -> tuple[bool, str]:
         emp = next((e for e in state.get("employees", []) if e["id"] == employee_id), None)
@@ -240,6 +603,18 @@ class HRSystem:
         return False, f"挖角失败（已支付搜寻费 ${cost*0.3:,.0f}）", None
 
     # ---- internals ----
+
+    def _hire_cost(self, state: dict, ctx, candidate: dict) -> float:
+        cost = float(candidate.get("signing_bonus", 0)) + float(candidate.get("salary", 0))
+        country_cfg = ctx.configs().get(
+            "countries", "countries", state["company"]["country"], default={}
+        ) or {}
+        cost *= float(country_cfg.get("talent_cost_multiplier", 1.0))
+        cost *= float(state.get("hr", {}).get("recruit_cost_mult", 1.0))
+        cost *= float(
+            state["company"].get("founder_background_cfg", {}).get("recruit_cost_multiplier", 1.0)
+        )
+        return cost
 
     def _gen_person(self, state, ctx, cfg, country: str, for_hire: bool = False) -> dict:
         rng = ctx.rng()
@@ -371,3 +746,9 @@ class HRSystem:
             ids = job.get("employee_ids", [])
             if employee_id in ids:
                 job["employee_ids"] = [i for i in ids if i != employee_id]
+        for job in state.get("training", {}).get("dataset_jobs", []):
+            ids = job.get("employee_ids", [])
+            if employee_id in ids:
+                job["employee_ids"] = [i for i in ids if i != employee_id]
+                if not job["employee_ids"]:
+                    job["paused"] = True

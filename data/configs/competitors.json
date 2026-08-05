@@ -346,6 +346,11 @@
     "poach_check_every": 7,
     "release_check_every": 3,
     "max_poach_attempts_per_tick": 1,
+    "poach_interest_multiplier": 0.58,
+    "poach_success_multiplier": 0.55,
+    "poach_success_cap": 0.18,
+    "poach_global_spacing_days": 18,
+    "poach_breach_months": 4,
     "player_counter_offer_window": false,
     "log_limit": 40
   }

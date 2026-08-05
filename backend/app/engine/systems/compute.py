@@ -58,14 +58,27 @@ class ComputeSystem:
         return events
 
     def serialize_public(self, state: dict[str, Any], ctx) -> dict[str, Any]:
+        training_system = ctx.get_system("training")
+        if training_system and hasattr(training_system, "_refresh_compute_allocations"):
+            training_system._refresh_compute_allocations(state, ctx)
         chips_cfg = ctx.configs().load("chips").get("chips", {})
         country = state["company"]["country"]
+        country_cfg = ctx.configs().get("countries", "countries", country, default={}) or {}
+        cost_mult = float(country_cfg.get("compute_cost_multiplier", 1.0))
+        cost_mult *= 1.0 + float(state["company"].get("modifiers", {}).get("compute_cost_mult", 0))
         available = []
         for cid, c in chips_cfg.items():
             countries = c.get("countries", [])
             if country in countries:
-                available.append({**c, "owned": int(state["compute"]["owned"].get(cid, 0)),
-                                  "cloud_qty": int(state["compute"]["cloud"].get(cid, 0))})
+                available.append({
+                    **c,
+                    "owned": int(state["compute"]["owned"].get(cid, 0)),
+                    "cloud_qty": int(state["compute"]["cloud"].get(cid, 0)),
+                    "effective_unit_cost": round(float(c.get("unit_cost", 0)) * cost_mult, 2),
+                    "effective_monthly_cloud_cost": round(
+                        float(c.get("monthly_cloud_cost", 0)) * cost_mult, 2
+                    ),
+                })
         return {
             "owned": state["compute"].get("owned", {}),
             "cloud": state["compute"].get("cloud", {}),

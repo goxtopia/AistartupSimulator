@@ -17,6 +17,7 @@ from backend.app.engine.interfaces.base import IGameContext, SystemRegistry
 from backend.app.engine.systems.competitors import CompetitorsSystem
 from backend.app.engine.systems.compute import ComputeSystem
 from backend.app.engine.systems.events import EventSystem
+from backend.app.engine.systems.finance import FinanceSystem
 from backend.app.engine.systems.hr import HRSystem
 from backend.app.engine.systems.market import MarketSystem
 from backend.app.engine.systems.research import ResearchSystem
@@ -77,6 +78,7 @@ class GameEngine:
             ComputeSystem(),
             TrainingSystem(),
             MarketSystem(),
+            FinanceSystem(),
             EventSystem(),
         ):
             self.systems.register(sys)
@@ -201,6 +203,8 @@ class GameEngine:
             research: ResearchSystem = self.systems.get("research")  # type: ignore
             compute: ComputeSystem = self.systems.get("compute")  # type: ignore
             training: TrainingSystem = self.systems.get("training")  # type: ignore
+            market: MarketSystem = self.systems.get("market")  # type: ignore
+            finance: FinanceSystem = self.systems.get("finance")  # type: ignore
             events: EventSystem = self.systems.get("events")  # type: ignore
 
             if action == "refresh_candidates":
@@ -217,6 +221,17 @@ class GameEngine:
                 ok, msg = hr.train_skill(
                     state, ctx, payload["employee_id"], payload["skill"], float(payload.get("intensity", 1.0))
                 )
+            elif action == "set_chief_scientist":
+                ok, msg, chief = hr.set_chief_scientist(state, payload.get("employee_id"))
+                data = {"chief_scientist": chief}
+            elif action == "set_auto_hire":
+                ok, msg, automation = hr.set_auto_hire(
+                    state,
+                    ctx,
+                    bool(payload.get("enabled", True)),
+                    int(payload.get("max_hires_per_cycle", 3)),
+                )
+                data = {"automation": automation}
             elif action == "poach":
                 ok, msg, emp = hr.try_poach(
                     state, ctx, payload["target_company_id"], float(payload.get("offer_multiplier", 1.5))
@@ -242,6 +257,15 @@ class GameEngine:
                 data = {"job": job}
             elif action == "pause_research":
                 ok, msg = research.pause(state, payload["research_id"])
+            elif action == "set_research_auto":
+                ok, msg, automation = research.set_auto(
+                    state,
+                    ctx,
+                    payload["research_id"],
+                    payload.get("category") or "model",
+                    bool(payload.get("enabled", True)),
+                )
+                data = {"automation": automation}
             elif action == "purchase_compute":
                 ok, msg = compute.purchase(
                     state, ctx, payload["chip_id"], int(payload.get("quantity", 1)), payload.get("mode", "buy")
@@ -253,8 +277,15 @@ class GameEngine:
                     payload["name"],
                     bool(payload.get("use_open_source_base", True)),
                     payload.get("data_research_weights") or {},
+                    payload.get("employee_ids") or [],
+                    int(payload.get("expected_days", 20)),
                 )
                 data = {"dataset": ds}
+            elif action == "assign_dataset":
+                ok, msg, job = training.assign_dataset(
+                    state, payload["job_id"], payload.get("employee_ids") or []
+                )
+                data = {"job": job}
             elif action == "start_training":
                 ok, msg, job = training.start_training(
                     state,
@@ -291,6 +322,36 @@ class GameEngine:
                     },
                 )
                 data = {"job": job}
+            elif action == "improve_model":
+                ok, msg, job = training.start_improvement(
+                    state,
+                    ctx,
+                    model_id=payload["model_id"],
+                    method=payload["method"],
+                    name=payload.get("name"),
+                    dataset_id=payload.get("dataset_id"),
+                    teacher_model_id=payload.get("teacher_model_id"),
+                    teacher_source=payload.get("teacher_source", "own"),
+                    expected_days=int(payload.get("expected_days", 14)),
+                    employee_ids=payload.get("employee_ids") or [],
+                )
+                data = {"job": job}
+            elif action == "set_auto_distill":
+                ok, msg, automation = training.set_auto_distill(
+                    state,
+                    ctx,
+                    model_id=payload["model_id"],
+                    enabled=bool(payload.get("enabled", True)),
+                    mode=payload.get("mode", "open"),
+                )
+                data = {"automation": automation}
+            elif action == "set_auto_rl":
+                ok, msg, automation = training.set_auto_rl(
+                    state,
+                    ctx,
+                    enabled=bool(payload.get("enabled", True)),
+                )
+                data = {"automation": automation}
             elif action == "release_model":
                 ok, msg, model = training.release(
                     state,
@@ -307,6 +368,34 @@ class GameEngine:
                 ok, msg = training.set_price(
                     state, ctx, payload["model_id"], float(payload["price_input"]), float(payload["price_output"])
                 )
+            elif action == "set_auto_price":
+                ok, msg, model = market.set_auto_pricing(
+                    state,
+                    ctx,
+                    payload["model_id"],
+                    bool(payload.get("enabled", True)),
+                )
+                data = {"model": model}
+            elif action == "sign_contract":
+                ok, msg, contract = market.sign_contract(
+                    state,
+                    ctx,
+                    payload["offer_id"],
+                    payload["model_id"],
+                    int(payload["duration_years"]),
+                )
+                data = {"contract": contract}
+            elif action == "borrow":
+                ok, msg, loan = finance.borrow(
+                    state, ctx, payload["product_id"], float(payload["amount"])
+                )
+                data = {"loan": loan}
+            elif action == "repay_loan_early":
+                ok, msg, loan = finance.repay_early(state, payload["loan_id"])
+                data = {"loan": loan}
+            elif action == "use_funding_tool":
+                ok, msg, funding = finance.use_funding_tool(state, ctx, payload["tool_id"])
+                data = {"funding": funding}
             elif action == "event_choice":
                 ok, msg, logs = events.choose(state, ctx, payload["event_instance_id"], payload["choice_id"])
                 data = {"logs": logs}
@@ -431,6 +520,7 @@ class GameEngine:
             "api_segments": self.configs.load("market").get("api_segments", {}),
             "eval_benchmarks": self.configs.load("market").get("eval_benchmarks", {}),
             "competitor_strategies": self.configs.load("competitors").get("strategies", {}),
+            "loan_products": self.configs.load("finance").get("loan_products", {}),
             "rivals_seed": [
                 {
                     "id": r["id"],

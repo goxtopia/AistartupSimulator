@@ -55,6 +55,15 @@ class TrainSkillRequest(BaseModel):
     intensity: float = Field(1.0, ge=0.5, le=2.0)
 
 
+class SetChiefScientistRequest(BaseModel):
+    employee_id: Optional[str] = None
+
+
+class AutoHireRequest(BaseModel):
+    enabled: bool = True
+    max_hires_per_cycle: int = Field(3, ge=1, le=20)
+
+
 class AssignResearchRequest(BaseModel):
     research_id: str
     category: str  # model | data | compute
@@ -67,6 +76,12 @@ class StartResearchRequest(BaseModel):
     employee_ids: list[str] = Field(default_factory=list)
 
 
+class AutoResearchRequest(BaseModel):
+    research_id: str
+    category: str
+    enabled: bool = True
+
+
 class PurchaseComputeRequest(BaseModel):
     chip_id: str
     quantity: int = Field(1, ge=1, le=1000)
@@ -77,6 +92,13 @@ class CreateDatasetRequest(BaseModel):
     name: str
     use_open_source_base: bool = True
     data_research_weights: dict[str, float] = Field(default_factory=dict)
+    employee_ids: list[str] = Field(default_factory=list)
+    expected_days: int = Field(20, ge=5, le=180)
+
+
+class AssignDatasetRequest(BaseModel):
+    job_id: str
+    employee_ids: list[str] = Field(default_factory=list)
 
 
 class StartTrainingRequest(BaseModel):
@@ -109,6 +131,27 @@ class DistillRequest(BaseModel):
     employee_ids: list[str] = Field(default_factory=list)
 
 
+class ImproveModelRequest(BaseModel):
+    model_id: str
+    method: Literal["fine_tune", "distill", "rl"]
+    name: Optional[str] = None
+    dataset_id: Optional[str] = None
+    teacher_model_id: Optional[str] = None
+    teacher_source: Literal["own", "open", "closed_competitor"] = "own"
+    expected_days: int = Field(14, ge=5, le=90)
+    employee_ids: list[str] = Field(default_factory=list)
+
+
+class AutoDistillRequest(BaseModel):
+    model_id: str
+    enabled: bool = True
+    mode: Literal["open", "closed", "frontier"] = "open"
+
+
+class AutoRlRequest(BaseModel):
+    enabled: bool = True
+
+
 class PoachRequest(BaseModel):
     target_company_id: str
     offer_multiplier: float = Field(1.5, ge=1.0, le=5.0)
@@ -123,6 +166,30 @@ class SetApiPriceRequest(BaseModel):
     model_id: str
     price_input: float = Field(..., ge=0.01, le=500)
     price_output: float = Field(..., ge=0.01, le=500)
+
+
+class AutoPriceRequest(BaseModel):
+    model_id: str
+    enabled: bool = True
+
+
+class SignContractRequest(BaseModel):
+    offer_id: str
+    model_id: str
+    duration_years: int = Field(..., ge=1, le=10)
+
+
+class BorrowRequest(BaseModel):
+    product_id: str
+    amount: float = Field(..., gt=0, le=100_000_000)
+
+
+class RepayLoanRequest(BaseModel):
+    loan_id: str
+
+
+class UseFundingToolRequest(BaseModel):
+    tool_id: str
 
 
 class ActionResult(BaseModel):
