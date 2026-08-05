@@ -75,6 +75,12 @@ export function showView(id) {
 export function setTab(name) {
   $all(".sidebar button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
   $all(".content .tab").forEach((t) => t.classList.toggle("on", t.id === `tab-${name}`));
+  const activeButton = $(`.sidebar button[data-tab="${name}"]`);
+  if (activeButton) {
+    activeButton.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }
+  const content = $(".content");
+  if (content) content.scrollTop = 0;
 }
 
 export function bindSeg(root, onChange) {
