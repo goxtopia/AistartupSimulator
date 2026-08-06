@@ -24,6 +24,131 @@
       "recruit_cost_multiplier": 0.95,
       "unlock_tags": ["gov_network", "enterprise_sales"],
       "available": true
+    },
+    "oss_contributor": {
+      "id": "oss_contributor",
+      "name": "开源贡献者",
+      "name_en": "Open Source Contributor",
+      "description": "多年活跃于开源社区的极客，技术深厚、人脉遍布开发者圈层。启动资金紧张，但社区口碑与开放态度极佳，能吸引廉价且忠诚的顶尖工程师。",
+      "icon": "code",
+      "stats": {
+        "tech_skill": 82,
+        "business_skill": 32,
+        "leadership": 46,
+        "charisma": 55
+      },
+      "starting_modifiers": {
+        "capital_bonus": 50000,
+        "capital_multiplier": 0.7,
+        "gov_relation_bonus": -5,
+        "public_rep_bonus": 12,
+        "innovation_bonus": 20,
+        "openness_bonus": 35
+      },
+      "research_speed_multiplier": 1.18,
+      "recruit_cost_multiplier": 0.78,
+      "unlock_tags": ["open_source_community", "developer_tools"],
+      "available": true
+    },
+    "ex_cto": {
+      "id": "ex_cto",
+      "name": "前技术总监",
+      "name_en": "Ex-CTO",
+      "description": "曾在大型科技公司执掌技术团队的技术高管。技术与管理俱佳，能快速搭建工程体系；带着丰厚储蓄与行业人脉出来创业。",
+      "icon": "cpu",
+      "stats": {
+        "tech_skill": 78,
+        "business_skill": 55,
+        "leadership": 76,
+        "charisma": 58
+      },
+      "starting_modifiers": {
+        "capital_bonus": 350000,
+        "capital_multiplier": 1.1,
+        "gov_relation_bonus": 5,
+        "public_rep_bonus": 5,
+        "innovation_bonus": 10,
+        "openness_bonus": 5
+      },
+      "research_speed_multiplier": 1.1,
+      "recruit_cost_multiplier": 0.9,
+      "unlock_tags": ["tech_exec_network", "enterprise_sales"],
+      "available": true
+    },
+    "ai_scientist": {
+      "id": "ai_scientist",
+      "name": "独立AI科学家",
+      "name_en": "AI Scientist",
+      "description": "独立研究者出身的顶尖 AI 科学家，论文影响力巨大。科研速度极快、创新能力惊人，但对商业与政商关系不太在行，启动资金有限。",
+      "icon": "brain",
+      "stats": {
+        "tech_skill": 92,
+        "business_skill": 28,
+        "leadership": 40,
+        "charisma": 44
+      },
+      "starting_modifiers": {
+        "capital_bonus": 120000,
+        "capital_multiplier": 0.8,
+        "gov_relation_bonus": 0,
+        "public_rep_bonus": 16,
+        "innovation_bonus": 25,
+        "openness_bonus": 20
+      },
+      "research_speed_multiplier": 1.3,
+      "recruit_cost_multiplier": 0.9,
+      "unlock_tags": ["research_community", "talent_magnet"],
+      "available": true
+    },
+    "serial_entrepreneur": {
+      "id": "serial_entrepreneur",
+      "name": "连续创业者",
+      "name_en": "Serial Entrepreneur",
+      "description": "已经成功退出过多家公司的老手，商业嗅觉与融资能力一流。人脉广、脸皮厚，擅长销售与扩张，技术与研发相对依赖团队。",
+      "icon": "rocket",
+      "stats": {
+        "tech_skill": 45,
+        "business_skill": 86,
+        "leadership": 80,
+        "charisma": 80
+      },
+      "starting_modifiers": {
+        "capital_bonus": 800000,
+        "capital_multiplier": 1.25,
+        "gov_relation_bonus": 10,
+        "public_rep_bonus": 10,
+        "innovation_bonus": 10,
+        "openness_bonus": 5
+      },
+      "research_speed_multiplier": 1.0,
+      "recruit_cost_multiplier": 0.92,
+      "unlock_tags": ["founder_network", "enterprise_sales"],
+      "available": true
+    },
+    "engineer_founder": {
+      "id": "engineer_founder",
+      "name": "工程师创业者",
+      "name_en": "Engineer Founder",
+      "description": "从一线工程师起步的创业者，能把想法快速做出原型。技术与研发稳定，兼具一定商业头脑，是一个均衡稳健的起点。",
+      "icon": "wrench",
+      "stats": {
+        "tech_skill": 72,
+        "business_skill": 50,
+        "leadership": 55,
+        "charisma": 48
+      },
+      "starting_modifiers": {
+        "capital_bonus": 200000,
+        "capital_multiplier": 0.9,
+        "gov_relation_bonus": -5,
+        "public_rep_bonus": 5,
+        "innovation_bonus": 12,
+        "openness_bonus": 12
+      },
+      "research_speed_multiplier": 1.15,
+      "recruit_cost_multiplier": 0.88,
+      "unlock_tags": ["developer_community"],
+      "available": true
     }
   }
 }

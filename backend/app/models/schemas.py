@@ -24,6 +24,7 @@ class NewGameRequest(BaseModel):
     founder_name: str = Field(..., min_length=1, max_length=40)
     founder_gender: Literal["male", "female", "other"] = "male"
     founder_background: str = "industrialist"
+    founder_appearance: str = "executive"
     logo: LogoConfig = Field(default_factory=LogoConfig)
     seed: Optional[int] = None
 

@@ -20,6 +20,7 @@ const state = {
     founder_name: "",
     founder_gender: "male",
     founder_background: "industrialist",
+    founder_appearance: "executive",
     country: "usa",
     company_name: "",
     logo: {
@@ -94,7 +95,8 @@ function wireSetup() {
   };
   bindSeg($("#founder-gender"), (v) => {
     state.setup.founder_gender = v;
-    renderFounderAvatar($("#founder-avatar"), v);
+    renderFounderPreview();
+    renderAppearances();
   });
   $("#founder-name").oninput = (e) => (state.setup.founder_name = e.target.value.trim());
   $("#company-name").oninput = (e) => {
@@ -148,7 +150,11 @@ function renderSetup() {
   $("#setup-prev").disabled = step === 0;
   $("#setup-next").textContent = step === 3 ? "创立公司" : "下一步";
 
-  if (step === 0) renderBackgrounds();
+  if (step === 0) {
+    renderBackgrounds();
+    renderAppearances();
+    renderFounderPreview();
+  }
   if (step === 1) renderCountries();
   if (step === 2) {
     fillLogoSelects();
@@ -156,8 +162,35 @@ function renderSetup() {
     $("#company-name").value = state.setup.company_name;
   }
   if (step === 3) renderConfirm();
-  renderFounderAvatar($("#founder-avatar"), state.setup.founder_gender);
   $("#founder-name").value = state.setup.founder_name;
+}
+
+function currentAppearance() {
+  const id = state.setup.founder_appearance;
+  return (state.catalog.appearances || []).find((a) => a.id === id) || null;
+}
+
+function renderFounderPreview() {
+  renderFounderAvatar($("#founder-avatar"), currentAppearance(), state.setup.founder_gender, 100);
+}
+
+function renderAppearances() {
+  const grid = $("#appearance-list");
+  const list = state.catalog.appearances || [];
+  grid.innerHTML = "";
+  list.forEach((app) => {
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "appearance-card" + (state.setup.founder_appearance === app.id ? " on" : "");
+    el.innerHTML = `<div class="thumb" data-thumb></div><div class="nm">${esc(app.name || app.id)}</div>`;
+    el.onclick = () => {
+      state.setup.founder_appearance = app.id;
+      renderAppearances();
+      renderFounderPreview();
+    };
+    grid.appendChild(el);
+    renderFounderAvatar(el.querySelector("[data-thumb]"), app, state.setup.founder_gender, 48);
+  });
 }
 
 function renderBackgrounds() {
@@ -169,13 +202,26 @@ function renderBackgrounds() {
     const el = document.createElement("button");
     el.type = "button";
     el.className = "choice" + (state.setup.founder_background === bg.id ? " on" : "");
+    const stats = bg.stats || {};
+    const mods = bg.starting_modifiers || {};
+    const tags = [
+      `<span class="tag">技术 ${stats.tech_skill ?? "-"}</span>`,
+      `<span class="tag">商业 ${stats.business_skill ?? "-"}</span>`,
+      `<span class="tag">领导 ${stats.leadership ?? "-"}</span>`,
+      `<span class="tag">魅力 ${stats.charisma ?? "-"}</span>`,
+    ];
+    const capMult = Number(mods.capital_multiplier ?? 1);
+    const capBonus = Number(mods.capital_bonus ?? 0);
+    if (capBonus > 0 || capMult > 1.05) tags.push(`<span class="tag good">资金充裕 +${money(capBonus)}</span>`);
+    else if (capMult < 0.95 || capBonus < 0) tags.push(`<span class="tag bad">启动资金紧张</span>`);
+    if (Number(mods.gov_relation_bonus ?? 0) > 0) tags.push(`<span class="tag good">政府关系+${mods.gov_relation_bonus}</span>`);
+    else if (Number(mods.gov_relation_bonus ?? 0) < 0) tags.push(`<span class="tag bad">政商生疏</span>`);
+    if (Number(mods.innovation_bonus ?? 0) > 8) tags.push(`<span class="tag">创新+${mods.innovation_bonus}</span>`);
+    if (Number(mods.openness_bonus ?? 0) > 8) tags.push(`<span class="tag">开放+${mods.openness_bonus}</span>`);
+    if (Number(bg.research_speed_multiplier ?? 1) > 1.05) tags.push(`<span class="tag good">科研×${bg.research_speed_multiplier}</span>`);
+    if (Number(bg.recruit_cost_multiplier ?? 1) < 0.95) tags.push(`<span class="tag good">招募↓${Math.round((1 - bg.recruit_cost_multiplier) * 100)}%</span>`);
     el.innerHTML = `<div class="t">${bg.name}</div><div class="d">${bg.description}</div>
-      <div class="tags">
-        <span class="tag">技术 ${bg.stats?.tech_skill ?? "-"}</span>
-        <span class="tag">商业 ${bg.stats?.business_skill ?? "-"}</span>
-        <span class="tag good">资金加成</span>
-        <span class="tag warn">政府关系+</span>
-      </div>`;
+      <div class="tags">${tags.join("")}</div>`;
     el.onclick = () => {
       state.setup.founder_background = bg.id;
       renderBackgrounds();
@@ -288,11 +334,13 @@ function renderConfirm() {
   const s = state.setup;
   const c = state.catalog.countries[s.country] || {};
   const bg = state.catalog.backgrounds[s.founder_background] || {};
+  const app = currentAppearance();
   mountLogo($("#confirm-logo"), s.logo, state.catalog.logo_parts, 96);
   $("#confirm-company").textContent = s.company_name || "—";
   $("#confirm-summary").innerHTML = `
     <li><span>创始人</span><span>${s.founder_name}（${genderLabel(s.founder_gender)}）</span></li>
     <li><span>背景</span><span>${bg.name || s.founder_background}</span></li>
+    <li><span>形象</span><span>${app?.name || "—"}</span></li>
     <li><span>国家</span><span>${c.flag_emoji || ""} ${c.name || s.country}</span></li>
     <li><span>难度</span><span>${"★".repeat(c.difficulty || 1)}</span></li>
   `;
@@ -311,6 +359,7 @@ async function createGame() {
       founder_name: s.founder_name,
       founder_gender: s.founder_gender,
       founder_background: s.founder_background,
+      founder_appearance: s.founder_appearance,
       logo: s.logo,
     });
     setGameId(res.state.game_id);
@@ -553,7 +602,8 @@ function renderDashboard() {
         </div>
       </div>
     </div>`;
-  renderFounderAvatar($("#dash-av"), f.gender || "male");
+  const fApp = (state.catalog.appearances || []).find((x) => x.id === f.appearance) || null;
+  renderFounderAvatar($("#dash-av"), fApp, f.gender || "male", 56);
 
   const segs = g.systems?.market?.segment_users || {};
   const segMeta = g.systems?.market?.segments || state.catalog.api_segments || {};

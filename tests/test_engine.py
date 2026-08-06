@@ -35,6 +35,46 @@ def _new():
     return e, st
 
 
+def test_all_founder_backgrounds_create_game():
+    e = GameEngine()
+    bgs = e.catalog()["backgrounds"]
+    for bg_id in bgs:
+        st = e.new_game(
+            {
+                "company_name": "BG",
+                "country": "usa",
+                "founder_name": "Ada",
+                "founder_gender": "female",
+                "founder_background": bg_id,
+                "founder_appearance": "hacker",
+                "logo": {},
+                "seed": 7,
+            }
+        )
+        f = st["company"]["founder"]
+        assert f["background"] == bg_id
+        assert f["background_name"] == bgs[bg_id]["name"]
+        assert f["appearance"] == "hacker"
+        assert st["company"]["capital"] > 0
+        assert st["systems"]["hr"]["candidates"][0]["hire_cost"] > 0
+
+
+def test_catalog_includes_appearances_and_backgrounds():
+    e = GameEngine()
+    cat = e.catalog()
+    assert "appearances" in cat
+    assert len(cat["appearances"]) >= 5
+    assert all("id" in a and "name" in a for a in cat["appearances"])
+    assert set(cat["backgrounds"]) >= {
+        "industrialist",
+        "oss_contributor",
+        "ex_cto",
+        "ai_scientist",
+        "serial_entrepreneur",
+        "engineer_founder",
+    }
+
+
 def test_new_game_capital_and_systems():
     e, st = _new()
     assert st["day"] == 0

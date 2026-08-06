@@ -15,6 +15,8 @@
 - **贷款融资**：动态授信额度、等额本息月供、手续费、信用评分与提前结清
 - **AI 对手**：9 家策略各异的实验室（闭源前沿、开源权重、安全优先、人才掠食者…），会自主研究、发模型，并从玩家处挖角
 - **Logo 设计器**：SVG 形状 + 图标 + 布局 + 配色叠加
+- **创始人形象**：程序生成的 SVG 半身像，12 种可选形象（发型/肤色/着装/眼镜/胡子等），随背景与性别组合
+- **多样起始角色**：实业家 / 开源贡献者 / 前技术总监 / 独立AI科学家 / 连续创业者 / 工程师创业者，各有不同的资金、倾向与科研招募加成
 - **存档/读档**：JSON 存档于 `saves/`
 - **美术**：纯 SVG / 程序生成，无外部图片依赖
 
@@ -59,6 +61,7 @@ AistartupSimulator/
 | 新效果键（如 `unlock_x`） | `DefaultEffectApplier.register("unlock_x", handler)` |
 | 新子系统 | 实现 `on_new_game` / `on_tick` / `serialize_public`，在 `GameEngine._register_systems` 注册 |
 | 新创始人背景 | `founder_backgrounds.json` 增加条目 |
+| 新创始人形象 | `founder_appearances.json` 增加条目（发型/肤色/着装/眼镜/胡子/帽子） |
 | 新隐藏标签 | `employees.json` → `hidden_tags` |
 | 新 AI 对手 / 策略 | `competitors.json` → `rivals` / `strategies` |
 

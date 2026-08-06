@@ -124,6 +124,7 @@ class GameEngine:
                     "founder": {
                         "name": req["founder_name"],
                         "gender": req.get("founder_gender", "male"),
+                        "appearance": req.get("founder_appearance", "executive"),
                         "background": bg_id,
                         "background_name": bg.get("name"),
                         "stats": bg.get("stats", {}),
@@ -510,6 +511,7 @@ class GameEngine:
         return {
             "countries": self.configs.load("countries").get("countries", {}),
             "backgrounds": self.configs.load("founder_backgrounds").get("backgrounds", {}),
+            "appearances": self.configs.load("founder_appearances").get("appearances", []),
             "logo_parts": self.configs.load("logo_parts"),
             "skills": self.configs.load("employees").get("skills", {}),
             "tendencies": self.configs.load("employees").get("tendencies", {}),
